@@ -62,7 +62,11 @@ const ovb = {
     $("o-ovb").innerHTML = `Omitted variable bias, exact in-sample:<br>
       <span class="s">β̃₁</span> = <span class="l">β̂₁</span> + <span class="l">β̂₂</span> · δ̃₁<br>
       <span class="s">${f(S.b[1])}</span> = <span class="l">${f(Lg.b[1])}</span> + <span class="l">${f(Lg.b[2])}</span> · ${f(delta)} &nbsp;(bias = ${f(Lg.b[2] * delta)})<br>
-      <span class="m">δ̃₁ = slope from regressing x₂ on x₁. Population value: corr · 3/2 = ${f(1.5 * p.rho, 2)}.</span>`;
+      <span class="m">δ̃₁ = slope from regressing x₂ on x₁ in this sample.</span><br><br>
+      <b>In the population</b> (what the short regression is centred on across samples):<br>
+      δ₁ = Cov(x₁, x₂) / Var(x₁) = (corr · SD₁ · SD₂) / SD₁² = (${f(p.rho, 2)} × 2 × 3) / 2² = <span class="l">${f(1.5 * p.rho, 3)}</span><br>
+      bias = β₂ · δ₁ = ${f(p.b2, 1)} × ${f(1.5 * p.rho, 3)} = <span class="s">${f(p.b2 * 1.5 * p.rho, 3)}</span> &nbsp;<span class="m">(${Math.abs(p.b2 * p.rho) < 1e-9 ? "no bias" : (p.b2 * p.rho > 0 ? "upward: sign(β₂) = sign(corr)" : "downward: sign(β₂) ≠ sign(corr)")})</span><br>
+      E[β̃₁] = β₁ + β₂ · δ₁ = ${f(p.b1, 1)} + ${f(p.b2 * 1.5 * p.rho, 3)} = <span class="s">${f(p.b1 + p.b2 * 1.5 * p.rho, 3)}</span> &nbsp;<span class="m">vs. ${f(S.b[1], 3)} in this sample</span>`;
     this.draw();
   },
   draw() {
@@ -205,55 +209,46 @@ const vif = {
 wire("vif", vif, ["v-rho", "v-sig", "v-n", "v-perf"], "v");
 
 // =====================================================================
-// 3. Inference: t, F, CIs
+// 3. Inference: t-tests and confidence intervals
 // =====================================================================
 const inf = {
   seed: 27182, Z: null, mc: null, last: null,
-  P() { return { b1: num("i-b1"), c: num("i-c"), a: num("i-a"), b2: num("i-b2"), b3: num("i-b3"), sig: num("i-sig"), n: num("i-n") }; },
+  P() { return { b1: num("i-b1"), c: num("i-c"), a: num("i-a"), sig: num("i-sig"), n: num("i-n") }; },
   data(Z, p, n) {
     const s = Math.sqrt(1 - 0.25), x1 = new Float64Array(n), x2 = new Float64Array(n), x3 = new Float64Array(n), y = new Float64Array(n);
     for (let i = 0; i < n; i++) {
       x1[i] = 10 + 2 * Z[0][i]; x2[i] = 20 + 3 * (0.5 * Z[0][i] + s * Z[1][i]); x3[i] = 50 + 10 * Z[2][i];
-      y[i] = 100 + p.b1 * x1[i] + p.b2 * x2[i] + p.b3 * x3[i] + p.sig * Z[3][i];
+      y[i] = 100 + p.b1 * x1[i] + 0.3 * x2[i] + 0.05 * x3[i] + p.sig * Z[3][i];
     }
     return { x1, x2, x3, y };
   },
   stats(d, p) {
-    const U = L.ols([d.x1, d.x2, d.x3], d.y), Rr = L.ols([d.x1], d.y);
-    const t = (U.b[1] - p.c) / U.se[1], pt = L.pT(t, U.df);
-    const F = ((Rr.ssr - U.ssr) / 2) / (U.ssr / U.df);
-    return { U, Rr, t, pt, F, pF: L.pF(F, 2, U.df) };
+    const U = L.ols([d.x1, d.x2, d.x3], d.y);
+    const t = (U.b[1] - p.c) / U.se[1];
+    return { U, t, pt: L.pT(t, U.df) };
   },
   render() {
     const p = this.P();
-    $("i-b1o").textContent = f(p.b1, 1); $("i-co").textContent = f(p.c, 1); $("i-b2o").textContent = f(p.b2, 2); $("i-b3o").textContent = f(p.b3, 2); $("i-sigo").textContent = f(p.sig, 1);
-    $("i-dgp").innerHTML = `True model: y = 100 <b>${sgn(p.b1)}</b>·x₁ <b>${sgn(p.b2, 2)}</b>·x₂ <b>${sgn(p.b3, 2)}</b>·x₃ + u &nbsp;·&nbsp; corr(x₁, x₂) = 0.5, x₃ ~ N(50, 10²) independent &nbsp;·&nbsp; σ = <b>${p.sig.toFixed(1)}</b> &nbsp;·&nbsp; n = <b>${p.n}</b>`;
+    $("i-b1o").textContent = f(p.b1, 1); $("i-co").textContent = f(p.c, 1); $("i-sigo").textContent = f(p.sig, 1);
+    $("i-dgp").innerHTML = `True model: y = 100 <b>${sgn(p.b1)}</b>·x₁ + 0.30·x₂ + 0.05·x₃ + u &nbsp;·&nbsp; corr(x₁, x₂) = 0.5 &nbsp;·&nbsp; σ = <b>${p.sig.toFixed(1)}</b> &nbsp;·&nbsp; n = <b>${p.n}</b>`;
     const d = this.data(getZ(this, 4), p, p.n), S = this.stats(d, p), U = S.U;
-    const tc = L.tcrit(U.df, p.a), Fc = L.Fcrit(2, U.df, p.a), lev = Math.round(100 * (1 - p.a));
+    const tc = L.tcrit(U.df, p.a), lev = Math.round(100 * (1 - p.a));
     const lo = U.b[1] - tc * U.se[1], hi = U.b[1] + tc * U.se[1];
-    this.last = { p, d, S, tc, Fc, lo, hi, lev };
-    const rejT = Math.abs(S.t) > tc, rejF = S.F > Fc;
+    this.last = { p, d, S, tc, lo, hi, lev };
+    const rejT = Math.abs(S.t) > tc;
     $("i-tcalc").innerHTML = `t = (β̂₁ − c) / se(β̂₁) = (${f(U.b[1])} − (${f(p.c, 1)})) / ${f(U.se[1])} = <span class="l">${f(S.t, 3)}</span><br>
-      df = n − k − 1 = ${p.n} − 3 − 1 = ${U.df} &nbsp;·&nbsp; critical |t| at α = ${p.a} is <span class="r">${f(tc, 3)}</span><br>
-      p-value = ${fp(S.pt)} &nbsp; ${verdict(rejT)}`;
-    const r2U = U.r2, r2R = S.Rr.r2;
-    $("i-fcalc").innerHTML = `Unrestricted: y on x₁, x₂, x₃ &nbsp;SSR<sub>U</sub> = ${f(U.ssr, 1)}<br>
-      Restricted: &nbsp; y on x₁ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;SSR<sub>R</sub> = ${f(S.Rr.ssr, 1)}<br>
-      F = [(SSR<sub>R</sub> − SSR<sub>U</sub>)/q] / [SSR<sub>U</sub>/(n−k−1)] = (${f(S.Rr.ssr - U.ssr, 1)}/2) / (${f(U.ssr, 1)}/${U.df}) = <span class="l">${f(S.F, 3)}</span><br>
-      <span class="m">R² version: [(${f(r2U, 4)} − ${f(r2R, 4)})/2] / [(1 − ${f(r2U, 4)})/${U.df}] = ${f(((r2U - r2R) / 2) / ((1 - r2U) / U.df), 3)}</span><br>
-      critical F(2, ${U.df}) = <span class="r">${f(Fc, 3)}</span> &nbsp;·&nbsp; p = ${fp(S.pF)} &nbsp; ${verdict(rejF)}`;
+      df = n − k − 1 = ${p.n} − 3 − 1 = ${U.df} &nbsp;·&nbsp; critical |t| at α = ${p.a}: <span class="r">${f(tc, 3)}</span> &nbsp;·&nbsp; p = ${fp(S.pt)} &nbsp; ${verdict(rejT)}`;
     const inside = p.c >= lo && p.c <= hi;
-    $("i-cicalc").innerHTML = `${lev}% CI = β̂₁ ± t<sub>crit</sub> · se(β̂₁) = ${f(U.b[1])} ± ${f(tc, 3)} × ${f(U.se[1])} = <span class="l">[${f(lo)}, ${f(hi)}]</span><br>
-      c = ${f(p.c, 1)} is ${inside ? "inside" : "outside"} the interval ⇔ the two-sided test at α = ${p.a} ${inside ? "fails to reject" : "rejects"}. ${verdict(!inside)}<br>
-      <span class="m">Meaning: ${lev}% of intervals built this way across repeated samples contain the true β₁. This one ${hi >= p.b1 && lo <= p.b1 ? "does" : "does not"} (true β₁ = ${f(p.b1, 1)}).</span>`;
+    $("i-cicalc").innerHTML = `${lev}% CI = β̂₁ ± t<sub>crit</sub>·se(β̂₁) = ${f(U.b[1])} ± ${f(tc, 3)} × ${f(U.se[1])} = <span class="l">[${f(lo)}, ${f(hi)}]</span><br>
+      c = ${f(p.c, 1)} is ${inside ? "inside" : "outside"} the interval, so the test at α = ${p.a} ${inside ? "fails to reject" : "rejects"}. ${verdict(!inside)}<br>
+      <span class="m">This interval ${hi >= p.b1 && lo <= p.b1 ? "contains" : "misses"} the true β₁ = ${f(p.b1, 1)}.</span>`;
     $("i-tab").innerHTML = L.regTable([{ title: "regress y x1 x2 x3", cls: "c-long", R: U, names: ["x1", "x2", "x3"] }], [["x1", "x₁"], ["x2", "x₂"], ["x3", "x₃"], ["_cons", "constant"]], [
-      ["R²", m => f(m.R.r2, 4)], ["Adjusted R²", m => f(m.R.adj, 4)], ["Root MSE (σ̂)", m => f(m.R.rmse, 3)], ["Overall F (p)", m => `${f(m.R.F, 2)} (${fp(m.R.pF)})`], ["df residual", m => m.R.df]]);
+      ["R²", m => f(m.R.r2, 4)], ["Root MSE (σ̂)", m => f(m.R.rmse, 3)], ["df residual", m => m.R.df]]);
     this.draw();
   },
   draw() {
     if (!this.last || !visible($("i-cvT"))) return;
-    const { p, S, tc, Fc, lo, hi, lev } = this.last, df = S.U.df, rej = L.alpha(css("--reject"), 0.35);
-    // t plot
+    const { p, S, tc, lo, hi, lev } = this.last, df = S.U.df, rej = L.alpha(css("--reject"), 0.35);
     const lim = Math.min(14, Math.max(4.5, Math.abs(S.t) + 0.8));
     let P = L.chart($("i-cvT"), [-lim, lim], [0, L.tpdf(0, df) * 1.15], { xlab: `t under H₀ (df = ${df})`, ylab: "density" });
     const pdf = x => L.tpdf(x, df);
@@ -262,17 +257,8 @@ const inf = {
     L.vline(P, -tc, css("--reject"), { width: 1.2, dash: [3, 3] }); L.vline(P, tc, css("--reject"), { width: 1.2, dash: [3, 3], label: "±" + f(tc, 2), row: 1 });
     if (Math.abs(S.t) <= lim) L.vline(P, S.t, css("--long"), { width: 2.5, label: "t = " + f(S.t, 2) });
     else L.label(P, `t = ${f(S.t, 2)} (off the chart ${S.t > 0 ? "→" : "←"})`, S.t > 0 ? P.w - P.m.r : P.m.l, P.m.t + 2, css("--long"), S.t > 0 ? "right" : "left");
-    // F plot
-    const fmax = Math.max(6, Fc * 1.8, Math.min(S.F * 1.15, 40));
-    const fpdf = x => L.Fpdf(Math.max(x, 1e-6), 2, df);
-    P = L.chart($("i-cvF"), [0, fmax], [0, 1.1], { xlab: `F under H₀ (2, ${df})`, ylab: "density" });
-    L.area(P, fpdf, Fc, fmax, rej); L.curve(P, fpdf, css("--ink"), { width: 2 });
-    L.vline(P, Fc, css("--reject"), { width: 1.2, dash: [3, 3], label: "critical " + f(Fc, 2), row: 1 });
-    if (S.F <= fmax) L.vline(P, S.F, css("--long"), { width: 2.5, label: "F = " + f(S.F, 2) });
-    else L.label(P, `F = ${f(S.F, 1)} (off the chart →)`, P.w - P.m.r, P.m.t + 2, css("--long"), "right");
     // CI strip
-    const xr = L.range([[lo, hi, p.c, p.b1]], 0.15);
-    P = L.chart($("i-cvCI"), xr, [0, 1], { noY: true, xlab: "β₁" });
+    P = L.chart($("i-cvCI"), L.range([[lo, hi, p.c, p.b1]], 0.15), [0, 1], { noY: true, xlab: "β₁" });
     const { ctx } = P, y0 = P.Y(0.5);
     ctx.strokeStyle = css("--long"); ctx.lineWidth = 6; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(P.X(lo), y0); ctx.lineTo(P.X(hi), y0); ctx.stroke(); ctx.lineCap = "butt";
     ctx.fillStyle = css("--surface"); ctx.strokeStyle = css("--long"); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(P.X(S.U.b[1]), y0, 6, 0, 7); ctx.fill(); ctx.stroke();
@@ -281,35 +267,118 @@ const inf = {
     L.label(P, `${lev}% CI`, P.X(lo), y0 + 10, css("--long"));
     // MC
     const cv = $("i-cvMC");
-    if (!this.mc) { L.message(cv, "Press “Run 1,000 samples”. The first 100 confidence intervals are drawn; the rates below use all 1,000."); $("i-mcstats").innerHTML = ""; return; }
-    const mc = this.mc, show = mc.ci.slice(0, 100);
-    const all = show.flat().concat([mc.p.b1, mc.p.c]);
-    P = L.chart(cv, L.range([all], 0.05), [0, show.length + 1], { xlab: "β₁", noY: true });
-    show.forEach(([a, b], i) => {
+    if (!this.mc) { L.message(cv, "Press “Run 100 samples” to draw 100 new samples and their confidence intervals."); $("i-mcstats").innerHTML = ""; return; }
+    const mc = this.mc, all = mc.ci.flat().concat([mc.p.b1, mc.p.c]);
+    P = L.chart(cv, L.range([all], 0.05), [0, mc.ci.length + 1], { xlab: "β₁", noY: true });
+    mc.ci.forEach(([a, b], i) => {
       const hit = a <= mc.p.b1 && mc.p.b1 <= b; P.ctx.strokeStyle = hit ? css("--long") : css("--reject"); P.ctx.lineWidth = hit ? 1.6 : 2.4;
       P.ctx.beginPath(); P.ctx.moveTo(P.X(a), P.Y(i + 1)); P.ctx.lineTo(P.X(b), P.Y(i + 1)); P.ctx.stroke();
     });
     L.vline(P, mc.p.b1, css("--ink"), { width: 1.5, label: "true β₁" });
     if (Math.abs(mc.p.c - mc.p.b1) > 1e-9) L.vline(P, mc.p.c, css("--short"), { width: 1.5, dash: [4, 3], label: "c", row: 1 });
-    const isNullT = Math.abs(mc.p.c - mc.p.b1) < 1e-9, isNullF = mc.p.b2 === 0 && mc.p.b3 === 0, a = mc.p.a;
-    $("i-mcstats").innerHTML = stat(`${Math.round(100 * (1 - a))}% CIs containing true β₁`, pct(mc.cover)) +
-      stat(`rejected H₀: β₁ = ${f(mc.p.c, 1)}`, pct(mc.rejT) + (isNullT ? ` (H₀ true: type I error, ≈ α = ${a})` : " (H₀ false: power)")) +
-      stat("rejected H₀: β₂ = β₃ = 0", pct(mc.rejF) + (isNullF ? ` (H₀ true: ≈ α = ${a})` : " (H₀ false: power)"));
+    const isNull = Math.abs(mc.p.c - mc.p.b1) < 1e-9, a = mc.p.a, levP = Math.round(100 * (1 - a)), exp = Math.round(100 * a);
+    $("i-mcstats").innerHTML = stat("intervals that miss the true β₁ (red)", `${mc.R - mc.cover} of ${mc.R}  (expected about ${exp})`) +
+      stat("intervals that contain the true β₁", `${mc.cover} of ${mc.R}  (target ${levP}%)`) +
+      stat(`rejected H₀: β₁ = ${f(mc.p.c, 1)}`, `${mc.rejT} of ${mc.R}` + (isNull ? ` (H₀ true: type I errors, expected about ${exp})` : " (H₀ false: this is power)"));
   },
   runMC() {
-    const p = this.P(), R = 1000, ci = []; let cover = 0, rT = 0, rF = 0, tc = null, Fc = null;
+    const p = this.P(), R = 100, ci = []; let cover = 0, rT = 0, tc = null;
+    this.runs = (this.runs || 0) + 1;                // each click draws a fresh batch of 100
     for (let r = 0; r < R; r++) {
-      const S = this.stats(this.data(L.normals(this.seed + 3000 + r, p.n, 4), p, p.n), p), U = S.U;
-      if (tc === null) { tc = L.tcrit(U.df, p.a); Fc = L.Fcrit(2, U.df, p.a); }
+      const S = this.stats(this.data(L.normals(this.seed + 3000 + 1000 * this.runs + r, p.n, 4), p, p.n), p), U = S.U;
+      if (tc === null) tc = L.tcrit(U.df, p.a);
       const a = U.b[1] - tc * U.se[1], b = U.b[1] + tc * U.se[1];
-      if (r < 100) ci.push([a, b]);
+      ci.push([a, b]);
       if (a <= p.b1 && p.b1 <= b) cover++;
-      if (Math.abs(S.t) > tc) rT++; if (S.F > Fc) rF++;
+      if (Math.abs(S.t) > tc) rT++;
     }
-    this.mc = { p, ci, cover: cover / R, rejT: rT / R, rejF: rF / R };
+    this.mc = { p, ci, R, cover, rejT: rT };
   }
 };
-wire("inf", inf, ["i-b1", "i-c", "i-a", "i-b2", "i-b3", "i-sig", "i-n"], "i");
+wire("inf", inf, ["i-b1", "i-c", "i-a", "i-sig", "i-n"], "i");
+
+// =====================================================================
+// 3b. Inference: joint F-tests
+// =====================================================================
+const jf = {
+  seed: 31337, Z: null, mc: null, last: null,
+  P() { return { b2: num("j-b2"), b3: num("j-b3"), rho: num("j-rho"), sig: num("j-sig"), n: num("j-n"), a: num("j-a") }; },
+  data(Z, p, n) {
+    const s = Math.sqrt(1 - p.rho * p.rho), x1 = new Float64Array(n), x2 = new Float64Array(n), x3 = new Float64Array(n), y = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      x1[i] = 10 + 2 * Z[0][i]; x2[i] = 20 + 3 * Z[1][i]; x3[i] = 30 + 3 * (p.rho * Z[1][i] + s * Z[2][i]);
+      y[i] = 100 - x1[i] + p.b2 * x2[i] + p.b3 * x3[i] + p.sig * Z[3][i];
+    }
+    return { x1, x2, x3, y };
+  },
+  stats(d, p) {
+    const U = L.ols([d.x1, d.x2, d.x3], d.y), Rr = L.ols([d.x1], d.y);
+    const F = ((Rr.ssr - U.ssr) / 2) / (U.ssr / U.df);
+    return { U, Rr, F, pF: L.pF(F, 2, U.df) };
+  },
+  render() {
+    const p = this.P();
+    $("j-b2o").textContent = f(p.b2, 1); $("j-b3o").textContent = f(p.b3, 1); $("j-rhoo").textContent = f(p.rho, 2); $("j-sigo").textContent = f(p.sig, 1);
+    $("j-dgp").innerHTML = `True model: y = 100 − 1.0·x₁ <b>${sgn(p.b2)}</b>·x₂ <b>${sgn(p.b3)}</b>·x₃ + u &nbsp;·&nbsp; corr(x₂, x₃) = <b>${f(p.rho, 2)}</b> &nbsp;·&nbsp; σ = <b>${p.sig.toFixed(1)}</b> &nbsp;·&nbsp; n = <b>${p.n}</b> &nbsp;·&nbsp; H₀: β₂ = β₃ = 0 is <b>${p.b2 === 0 && p.b3 === 0 ? "true" : "false"}</b>`;
+    const d = this.data(getZ(this, 4), p, p.n), S = this.stats(d, p), U = S.U, Rr = S.Rr;
+    const tc = L.tcrit(U.df, p.a), Fc = L.Fcrit(2, U.df, p.a);
+    this.last = { p, S, tc, Fc };
+    $("j-tab").innerHTML = L.regTable([
+      { title: "Restricted: y on x₁ (H₀ imposed)", cls: "c-short", R: Rr, names: ["x1"], missing: "dropped" },
+      { title: "Unrestricted: y on x₁, x₂, x₃", cls: "c-long", R: U, names: ["x1", "x2", "x3"] }],
+      [["x1", "x₁"], ["x2", "x₂"], ["x3", "x₃"], ["_cons", "constant"]],
+      [["SSR", m => `<b>${f(m.R.ssr, 1)}</b>`], ["R²", m => f(m.R.r2, 4)], ["df residual (n − k − 1)", m => m.R.df], ["Root MSE (σ̂)", m => f(m.R.rmse, 3)]]);
+    const gap = Rr.ssr - U.ssr, mx = Rr.ssr, w = v => (100 * v / mx).toFixed(2) + "%";
+    $("j-bars").innerHTML =
+      `<div class="bar"><span>SSR restricted</span><span class="track"><span class="fill" style="width:100%;background:var(--short)"></span></span><span class="num">${f(Rr.ssr, 0)}</span></div>
+       <div class="bar"><span>SSR unrestricted</span><span class="track"><span class="fill" style="width:${w(U.ssr)};background:var(--long)"></span></span><span class="num">${f(U.ssr, 0)}</span></div>
+       <div class="bar"><span>increase from dropping x₂, x₃</span><span class="track"><span class="fill" style="left:${w(U.ssr)};width:${w(gap)};background:var(--reject);opacity:.7"></span></span><span class="num">${f(gap, 0)}</span></div>`;
+    const rejF = S.F > Fc, t2 = U.t[2], t3 = U.t[3], s2 = Math.abs(t2) > tc, s3 = Math.abs(t3) > tc;
+    const disagree = rejF && !s2 && !s3 ? `<br><span class="l">The two t-tests say neither variable matters; the F-test says that together they clearly do.</span>` :
+      !rejF && (s2 || s3) ? `<br><span class="s">Here a t-test rejects but F does not: one variable looks significant on its own, but the pair as a whole adds too little.</span>` : "";
+    $("j-calc").innerHTML = `F = [(${f(Rr.ssr, 1)} − ${f(U.ssr, 1)}) / 2] / [${f(U.ssr, 1)} / ${U.df}] = ${f(gap / 2, 1)} / ${f(U.ssr / U.df, 2)} = <span class="l">${f(S.F, 3)}</span><br>
+      <span class="m">R² version: [(${f(U.r2, 4)} − ${f(Rr.r2, 4)}) / 2] / [(1 − ${f(U.r2, 4)}) / ${U.df}] = ${f(((U.r2 - Rr.r2) / 2) / ((1 - U.r2) / U.df), 3)}</span><br>
+      critical F(2, ${U.df}) at α = ${p.a}: <span class="r">${f(Fc, 3)}</span> &nbsp;·&nbsp; p = ${fp(S.pF)} &nbsp; ${verdict(rejF)}<br><br>
+      Individual t-tests (critical |t| = ${f(tc, 2)}):<br>
+      t₂ = ${f(t2, 2)} (p = ${fp(U.p[2])}) ${verdict(s2)} &nbsp; t₃ = ${f(t3, 2)} (p = ${fp(U.p[3])}) ${verdict(s3)}${disagree}`;
+    this.draw();
+  },
+  draw() {
+    if (!this.last || !visible($("j-cvF"))) return;
+    const { S, Fc } = this.last, df = S.U.df, lc = css("--long");
+    const fmax = Math.max(6, Fc * 1.8, Math.min(S.F * 1.15, 40)), fpdf = x => L.Fpdf(Math.max(x, 1e-6), 2, df);
+    let P = L.chart($("j-cvF"), [0, fmax], [0, 1.1], { xlab: `F under H₀ (2, ${df})`, ylab: "density" });
+    L.area(P, fpdf, Fc, fmax, L.alpha(css("--reject"), 0.35)); L.curve(P, fpdf, css("--ink"), { width: 2 });
+    L.vline(P, Fc, css("--reject"), { width: 1.2, dash: [3, 3], label: "critical " + f(Fc, 2), row: 1 });
+    if (S.F <= fmax) L.vline(P, S.F, lc, { width: 2.5, label: "F = " + f(S.F, 2) });
+    else L.label(P, `F = ${f(S.F, 1)} (off the chart →)`, P.w - P.m.r, P.m.t + 2, lc, "right");
+    const cv = $("j-cvMC");
+    if (!this.mc) { L.message(cv, "Press “Run 500 samples” to see how often the t-tests and the F-test disagree."); $("j-mcstats").innerHTML = ""; return; }
+    const mc = this.mc, lim = Math.max(mc.tc * 1.6, ...mc.t2.map(Math.abs), ...mc.t3.map(Math.abs)) * 1.05;
+    P = L.chart(cv, [-lim, lim], [-lim, lim], { xlab: "t-statistic on x₂", ylab: "t-statistic on x₃", zeroY: true });
+    const c = P.ctx; c.save(); c.setLineDash([5, 4]); c.strokeStyle = css("--ink"); c.lineWidth = 1.5;
+    c.strokeRect(P.X(-mc.tc), P.Y(mc.tc), P.X(mc.tc) - P.X(-mc.tc), P.Y(-mc.tc) - P.Y(mc.tc)); c.restore();
+    L.dots(P, mc.t2, mc.t3, i => mc.rej[i] ? css("--reject") : css("--muted"), { alpha: 0.7, r: 2.6 });
+    L.label(P, "both t insignificant", P.X(-mc.tc), P.Y(mc.tc) + 3, css("--ink"));
+    const N = mc.t2.length, nullTrue = mc.p.b2 === 0 && mc.p.b3 === 0;
+    $("j-mcstats").innerHTML = stat("F rejects H₀", `${mc.nF} of ${N}` + (nullTrue ? ` (H₀ true: expected about ${Math.round(N * mc.p.a)})` : "")) +
+      stat("t₂ significant", `${mc.n2} of ${N}`) + stat("t₃ significant", `${mc.n3} of ${N}`) +
+      stat("F rejects, both t insignificant", `${mc.nBox} of ${N}`) + stat("a t rejects, F does not", `${mc.nRev} of ${N}`);
+  },
+  runMC() {
+    const p = this.P(), R = 500, t2 = [], t3 = [], rej = []; let nF = 0, n2 = 0, n3 = 0, nBox = 0, nRev = 0, tc = null, Fc = null;
+    this.runs = (this.runs || 0) + 1;
+    for (let r = 0; r < R; r++) {
+      const S = this.stats(this.data(L.normals(this.seed + 7000 + 1000 * this.runs + r, p.n, 4), p, p.n), p), U = S.U;
+      if (tc === null) { tc = L.tcrit(U.df, p.a); Fc = L.Fcrit(2, U.df, p.a); }
+      const a = Math.abs(U.t[2]) > tc, b = Math.abs(U.t[3]) > tc, F = S.F > Fc;
+      t2.push(U.t[2]); t3.push(U.t[3]); rej.push(F);
+      nF += F; n2 += a; n3 += b; nBox += (F && !a && !b); nRev += (!F && (a || b));
+    }
+    this.mc = { p, t2, t3, rej, tc, nF, n2, n3, nBox, nRev };
+  }
+};
+wire("jf", jf, ["j-b2", "j-b3", "j-rho", "j-sig", "j-n", "j-a"], "j");
 
 // =====================================================================
 // 4. Quadratics, adjusted R² & prediction
@@ -445,10 +514,15 @@ const het = {
     // MC
     const cv = $("h-cvMC");
     if (!this.mc) { L.message(cv, "Press “Run 1,000 samples” to compare the true sampling spread of β̂₁ with the usual and robust standard errors."); $("h-bars").innerHTML = ""; $("h-mcstats").innerHTML = ""; return; }
-    const mc = this.mc, xr = L.range([mc.b], 0.05, [-1]), bins = 40;
-    P = L.chart(cv, xr, [0, L.histMax(mc.b, xr[0], xr[1], bins) * 1.12], { xlab: "β̂₁", ylab: "count" });
-    L.hist(P, mc.b, bins, css("--long"));
-    L.vline(P, -1, css("--ink"), { label: "true β₁ = −1" });
+    const mc = this.mc, sU = L.mean(mc.seU), sR = L.mean(mc.seR), bins = 40;
+    const xr = L.range([mc.b], 0.05, [-1 - 3.5 * Math.max(sU, sR), -1 + 3.5 * Math.max(sU, sR)]), bw = (xr[1] - xr[0]) / bins;
+    const npdf = s => v => Math.exp(-0.5 * ((v + 1) / s) ** 2) / (s * Math.sqrt(2 * Math.PI));
+    const dens = L.histMax(mc.b, xr[0], xr[1], bins) / (mc.b.length * bw);
+    P = L.chart(cv, xr, [0, Math.max(dens, npdf(sU)(-1), npdf(sR)(-1)) * 1.12], { xlab: "β̂₁", ylab: "density" });
+    L.hist(P, mc.b, bins, css("--muted"), { scale: 1 / (mc.b.length * bw), alpha: 0.4 });
+    L.curve(P, npdf(sU), css("--short"), { width: 2.5 });
+    L.curve(P, npdf(sR), css("--long"), { width: 2.5 });
+    L.vline(P, -1, css("--ink"), { width: 1.5, label: "true β₁ = −1" });
     const bar = (k, v, mark, col) => `<div class="bar"><span>${k}</span><span class="track"><span class="fill" style="width:${(100 * v).toFixed(1)}%;background:${col}"></span><span class="mark" style="left:${100 * mark}%"></span></span><span class="num">${pct(v)}</span></div>`;
     $("h-bars").innerHTML = bar("95% CI coverage, usual", mc.covU, 0.95, "var(--short)") + bar("95% CI coverage, robust", mc.covR, 0.95, "var(--long)") +
       bar("Breusch–Pagan rejects", mc.bp, 0.05, "var(--muted)");
@@ -749,7 +823,7 @@ wire("anova", anova, ["a-b1", "a-sig", "a-n", "a-a", "a-xs"], "a");
 // =====================================================================
 // Topic TOC, resizing, theme
 // =====================================================================
-const keys = ["ls", "ovb", "vif", "ci", "anova", "inf", "logs", "form", "het"];
+const keys = ["ls", "ovb", "vif", "ci", "anova", "inf", "jf", "logs", "form", "het"];
 const btns = keys.map(k => $("toc-" + k));
 keys.forEach((k, i) => {                       // pane heading from the TOC entry
   const b = btns[i], chap = b.closest(".chap"), h = document.createElement("h2");
@@ -768,6 +842,7 @@ btns.forEach((b, i) => b.addEventListener("click", () => {
   show(keys[i]);
   if (window.matchMedia("(max-width: 1180px)").matches) $("pane-" + keys[i]).scrollIntoView({ block: "start" });
 }));
+document.querySelectorAll("[data-goto]").forEach(el => el.addEventListener("click", () => { show(el.dataset.goto); window.scrollTo(0, 0); }));
 const redraw = () => modules[active] && modules[active].draw();
 let raf = 0; const soon = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(redraw); };
 const ro = new ResizeObserver(soon); document.querySelectorAll(".pane main").forEach(el => ro.observe(el));

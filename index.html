@@ -474,7 +474,7 @@ regress y x1 x2 x3, level(99)</div>
         </section>
         <section class="panel" aria-labelledby="i-h5">
           <h2 id="i-h5">Repeated samples: 100 confidence intervals</h2>
-          <div class="btns"><button type="button" class="act ghost" id="i-mc">Run 1,000 samples</button></div>
+          <div class="btns"><button type="button" class="act ghost" id="i-mc">Run 100 samples</button></div>
           <div class="cv tall"><canvas id="i-cvMC" role="img" aria-label="One hundred confidence intervals, marking those that miss the true beta1"></canvas></div>
           <div class="legend">
             <span><i class="sw" style="background:var(--long)"></i>CI contains true β₁</span>
@@ -483,6 +483,7 @@ regress y x1 x2 x3, level(99)</div>
             <span><i class="sw" style="background:var(--short)"></i>c</span>
           </div>
           <div class="stats" id="i-mcstats"></div>
+          <p>Each line is the confidence interval from one sample of the same true model. Teal intervals contain the true β₁, red ones miss it. Press the button again: the number of red lines changes every time, around 5 at α = 0.05 but rarely exactly 5. That wobble is sampling variation too.</p>
         </section>
       </main>
     </div>
@@ -539,21 +540,26 @@ predict sef, stdf    // se for a new obs.</div>
           <h2 id="q-h3">Regression output</h2>
           <div class="tablewrap"><table id="q-tab"></table></div>
         </section>
-        <div class="plots">
-          <section class="panel" aria-labelledby="q-h4">
-            <h2 id="q-h4">Marginal effect and prediction at the chosen x</h2>
-            <div class="calc" id="q-calc"></div>
-          </section>
-          <section class="panel" aria-labelledby="q-h5">
-            <h2 id="q-h5">R² vs adjusted R² as junk regressors pile up</h2>
-            <div class="cv"><canvas id="q-cvR2" role="img" aria-label="R-squared and adjusted R-squared against the number of irrelevant regressors"></canvas></div>
-            <div class="legend">
-              <span><i class="sw" style="background:var(--short)"></i>R²</span>
-              <span><i class="sw" style="background:var(--long)"></i>Adjusted R²</span>
-            </div>
-            <p>Each step adds one pure-noise regressor to the quadratic model. Adjusted R² goes up only when the new variable's |t| exceeds 1.</p>
-          </section>
-        </div>
+        <section class="panel" aria-labelledby="q-h4">
+          <h2 id="q-h4">Marginal effect and prediction at the chosen x</h2>
+          <div class="calc" id="q-calc"></div>
+        </section>
+        <section class="panel" aria-labelledby="q-h5">
+          <h2 id="q-h5">R² vs adjusted R² as junk regressors pile up</h2>
+          <div class="cv wide"><canvas id="q-cvR2" role="img" aria-label="R-squared and adjusted R-squared against the number of irrelevant regressors"></canvas></div>
+          <div class="legend">
+            <span><i class="sw" style="background:var(--short)"></i>R²</span>
+            <span><i class="sw" style="background:var(--long)"></i>Adjusted R²</span>
+          </div>
+          <p>Each step adds one pure-noise regressor to the quadratic model.</p>
+          <div class="explain">
+            <p><b>Why R² only goes up.</b> R² = 1 − SSR / SST. A new regressor can never raise SSR, because OLS could always give it a coefficient of zero. Even pure noise is correlated with the residuals by chance and absorbs a little of them, so SSR falls and R² rises.</p>
+            <p><b>Why adjusted R² usually goes down.</b> It replaces sums of squares with variances:</p>
+            <div class="calc">R̄² = 1 − [SSR / (n − k − 1)] / [SST / (n − 1)] = 1 − σ̂² / s²<sub>y</sub></div>
+            <p>Adding a regressor lowers SSR a little but also lowers n − k − 1 by one. If SSR falls proportionally less than the degrees of freedom, σ̂² rises and R̄² falls. This happens exactly when the new variable has |t| &lt; 1.</p>
+            <p><b>What the chart shows.</b> For a pure-noise regressor, |t| &lt; 1 about two times in three, so adjusted R² drifts down. The occasional uptick is a junk variable that got |t| &gt; 1 by luck. R² rewards every added variable; adjusted R² charges one degree of freedom for each.</p>
+          </div>
+        </section>
       </main>
     </div>
   </section>
