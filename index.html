@@ -609,11 +609,14 @@ regress y x1 x2, vce(robust)</div>
         <section class="panel" aria-labelledby="h-h5">
           <h2 id="h-h5">Repeated samples: 1,000 draws from the same model</h2>
           <div class="btns"><button type="button" class="act ghost" id="h-mc">Run 1,000 samples</button></div>
-          <div class="cv wide"><canvas id="h-cvMC" role="img" aria-label="Histogram of beta1-hat across samples"></canvas></div>
+          <div class="cv wide"><canvas id="h-cvMC" role="img" aria-label="Histogram of beta1-hat across samples with the normal curves implied by the usual and robust standard errors"></canvas></div>
           <div class="legend">
-            <span><i class="blk" style="background:var(--long)"></i>β̂₁ across samples</span>
+            <span><i class="blk" style="background:var(--muted);opacity:.5"></i>β̂₁ across samples (the true spread)</span>
+            <span><i class="sw" style="background:var(--short)"></i>spread implied by the usual SE</span>
+            <span><i class="sw" style="background:var(--long)"></i>spread implied by the robust SE</span>
             <span><i class="sw" style="background:var(--ink)"></i>true β₁</span>
           </div>
+          <p>If a standard error is right, its bell curve should trace the histogram. A curve narrower than the histogram means that SE understates the real uncertainty, so its confidence intervals are too short and its tests reject too often.</p>
           <div class="bars" id="h-bars"></div>
           <div class="stats" id="h-mcstats"></div>
         </section>
