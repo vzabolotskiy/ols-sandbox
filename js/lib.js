@@ -229,7 +229,7 @@ const Lib = (() => {
       if (!models.some(m => key === "_cons" || m.names.includes(key))) continue;
       h += `<tr><td>${lab}</td>` + models.map(m => {
         if (!m.R) return `<td class="na">${m.note || "·"}</td>`;
-        const j = key === "_cons" ? 0 : m.names.indexOf(key) + 1; if (key !== "_cons" && j === 0) return `<td class="na">·</td>`;
+        const j = key === "_cons" ? 0 : m.names.indexOf(key) + 1; if (key !== "_cons" && j === 0) return `<td class="na">${m.missing || "·"}</td>`;
         const se = m.robust ? m.R.seR[j] : m.R.se[j], t = m.robust ? m.R.tR[j] : m.R.t[j], p = m.robust ? m.R.pR[j] : m.R.p[j];
         return `<td><span class="${p < 0.05 ? "sig" : ""}">${f(m.R.b[j], m.dec || 3)}</span><span class="se">(${f(se, m.dec || 3)})  t=${f(t, 2)}  p=${fp(p)}</span></td>`;
       }).join("") + "</tr>";

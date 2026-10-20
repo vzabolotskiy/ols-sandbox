@@ -9,6 +9,7 @@ const modules = {};
 
 // wire a module: inputs re-render; "new sample" reseeds; MC button runs simulation
 function wire(key, mod, inputs, pre) {
+  if (!inputs.every(id => $(id))) { console.warn("OLS Sandbox: markup for tab \"" + key + "\" is missing; skipping it"); return; }
   modules[key] = mod;
   inputs.forEach(id => $(id).addEventListener("input", () => { mod.mc = null; mod.render(); }));
   const nb = $(pre + "-new"); if (nb) nb.addEventListener("click", () => { mod.seed = L.nextSeed(mod.seed); mod.Z = null; mod.mc = null; mod.render(); });
@@ -33,7 +34,7 @@ const ovb = {
   render() {
     const p = this.P();
     $("o-b1o").textContent = f(p.b1, 1); $("o-b2o").textContent = f(p.b2, 1); $("o-rhoo").textContent = f(p.rho, 2); $("o-sigo").textContent = f(p.sig, 1);
-    $("o-dgp").innerHTML = `True model: y = 100 <b>${sgn(p.b1)}</b>·x₁ <b>${sgn(p.b2)}</b>·x₂ + u &nbsp;·&nbsp; corr(x₁, x₂) = <b>${f(p.rho, 2)}</b> &nbsp;·&nbsp; σ = <b>${p.sig.toFixed(1)}</b> &nbsp;·&nbsp; n = <b>${p.n}</b>`;
+    $("o-dgp").innerHTML = `True model: y = 100 <b>${sgn(p.b1)}</b>·x₁ <b>${sgn(p.b2)}</b>·x₂ + u &nbsp;·&nbsp; x₁ ~ N(10, 2²), x₂ ~ N(20, 3²) &nbsp;·&nbsp; corr(x₁, x₂) = <b>${f(p.rho, 2)}</b> &nbsp;·&nbsp; σ = <b>${p.sig.toFixed(1)}</b> &nbsp;·&nbsp; n = <b>${p.n}</b>`;
     const d = this.data(getZ(this, 4), p, p.n);
     const S = L.ols([d.x1], d.y), Lg = L.ols([d.x1, d.x2], d.y), L3 = p.x3 ? L.ols([d.x1, d.x2, d.x3], d.y) : null;
     const delta = L.ols([d.x1], d.x2).b[1];
@@ -64,6 +65,7 @@ const ovb = {
       <span class="s">${f(S.b[1])}</span> = <span class="l">${f(Lg.b[1])}</span> + <span class="l">${f(Lg.b[2])}</span> · ${f(delta)} &nbsp;(bias = ${f(Lg.b[2] * delta)})<br>
       <span class="m">δ̃₁ = slope from regressing x₂ on x₁ in this sample.</span><br><br>
       <b>In the population</b> (what the short regression is centred on across samples):<br>
+      In this example x₁ ~ N(10, 2²) and x₂ ~ N(20, 3²), so SD₁ = 2 and SD₂ = 3.<br>
       δ₁ = Cov(x₁, x₂) / Var(x₁) = (corr · SD₁ · SD₂) / SD₁² = (${f(p.rho, 2)} × 2 × 3) / 2² = <span class="l">${f(1.5 * p.rho, 3)}</span><br>
       bias = β₂ · δ₁ = ${f(p.b2, 1)} × ${f(1.5 * p.rho, 3)} = <span class="s">${f(p.b2 * 1.5 * p.rho, 3)}</span> &nbsp;<span class="m">(${Math.abs(p.b2 * p.rho) < 1e-9 ? "no bias" : (p.b2 * p.rho > 0 ? "upward: sign(β₂) = sign(corr)" : "downward: sign(β₂) ≠ sign(corr)")})</span><br>
       E[β̃₁] = β₁ + β₂ · δ₁ = ${f(p.b1, 1)} + ${f(p.b2 * 1.5 * p.rho, 3)} = <span class="s">${f(p.b1 + p.b2 * 1.5 * p.rho, 3)}</span> &nbsp;<span class="m">vs. ${f(S.b[1], 3)} in this sample</span>`;
@@ -612,7 +614,7 @@ const ls = {
   }
 };
 wire("ls", ls, ["s-b1", "s-sig", "s-n", "s-ys", "s-yh", "s-show"], "s");
-$("s-snap").addEventListener("click", () => { const l = ls.last; if (!l) return; $("s-ys").value = l.b1; $("s-yh").value = 0; $("s-show").checked = true; ls.render(); });
+$("s-snap") && $("s-snap").addEventListener("click", () => { const l = ls.last; if (!l) return; $("s-ys").value = l.b1; $("s-yh").value = 0; $("s-show").checked = true; ls.render(); });
 
 // =====================================================================
 // Logarithms
@@ -823,7 +825,8 @@ wire("anova", anova, ["a-b1", "a-sig", "a-n", "a-a", "a-xs"], "a");
 // =====================================================================
 // Topic TOC, resizing, theme
 // =====================================================================
-const keys = ["ls", "ovb", "vif", "ci", "anova", "inf", "jf", "logs", "form", "het"];
+// only tabs whose TOC entry, pane and module all exist, so a stale index.html cannot freeze the page
+const keys = ["ls", "ovb", "vif", "ci", "anova", "inf", "jf", "logs", "form", "het"].filter(k => $("toc-" + k) && $("pane-" + k) && modules[k]);
 const btns = keys.map(k => $("toc-" + k));
 keys.forEach((k, i) => {                       // pane heading from the TOC entry
   const b = btns[i], chap = b.closest(".chap"), h = document.createElement("h2");
@@ -832,7 +835,7 @@ keys.forEach((k, i) => {                       // pane heading from the TOC entr
 });
 let active = "ls";
 function show(k) {
-  if (!modules[k]) k = "ls"; active = k;
+  if (!keys.includes(k)) k = keys[0]; active = k;
   keys.forEach((kk, i) => { const on = kk === k; if (on) btns[i].setAttribute("aria-current", "page"); else btns[i].removeAttribute("aria-current"); $("pane-" + kk).hidden = !on; });
   try { localStorage.setItem("olsSandboxTab", k); } catch (e) {}
   try { history.replaceState(null, "", "#" + k); } catch (e) {}

@@ -23,7 +23,8 @@ Everything runs in your browser. Nothing to install, no data uploaded, works on 
 | Multiple regression | Multicollinearity & VIF | How correlated regressors inflate standard errors; VIF; insignificant alone but jointly significant |
 | Inference | Sampling distribution & CIs | Why β̂₁ changes from sample to sample; se(β̂₁) = σ̂/√SSTₓ; confidence intervals and the t-test |
 | Inference | ANOVA, F-test & prediction | The ANOVA table, F = t² with one regressor, prediction intervals and where their width comes from |
-| Inference | t-tests, joint F-tests & CIs | Testing H₀: β = c, joint F-tests, type I error and power, what “95%” in a CI really means |
+| Inference | t-tests & confidence intervals | Testing H₀: β = c, type I error and power, what “95%” in a CI really means |
+| Inference | Joint F-tests | Restricted vs unrestricted models, the F-statistic, and why variables can be insignificant one at a time but significant together |
 | Functional form | Logarithms | Level-level, log-level, level-log, log-log: how to read β̂₁ in each, and why R² is not comparable across them |
 | Functional form | Quadratics, adjusted R² & prediction | Marginal effects and turning points, R² vs adjusted R², CIs for the mean vs a new observation |
 | Assumptions | Heteroskedasticity & robust SEs | OLS stays unbiased but usual standard errors mislead; robust SEs; Breusch–Pagan and White tests |

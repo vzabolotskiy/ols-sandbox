@@ -29,7 +29,8 @@
       <div class="chap"><span class="cht">Inference</span>
         <button type="button" id="toc-ci" data-k="ci">Sampling distribution &amp; CIs</button>
         <button type="button" id="toc-anova" data-k="anova">ANOVA, F-test &amp; prediction</button>
-        <button type="button" id="toc-inf" data-k="inf">t-tests, joint F-tests &amp; CIs</button></div>
+        <button type="button" id="toc-inf" data-k="inf">t-tests &amp; confidence intervals</button>
+        <button type="button" id="toc-jf" data-k="jf">Joint F-tests</button></div>
       <div class="chap"><span class="cht">Functional form</span>
         <button type="button" id="toc-logs" data-k="logs">Logarithms</button>
         <button type="button" id="toc-form" data-k="form">Quadratics, adjusted R² &amp; prediction</button></div>
@@ -396,6 +397,7 @@ test x1 x2         // joint F</div>
           <h2 id="v-h3">Regression output</h2>
           <div class="tablewrap"><table id="v-tab"></table></div>
           <div class="calc" id="v-ftest"></div>
+          <p>Why a joint test can reject when neither t-test does, and how the F-statistic is built: <button type="button" class="linkish" data-goto="jf">see Joint F-tests</button>.</p>
         </section>
         <section class="panel" aria-labelledby="v-h4">
           <h2 id="v-h4">Repeated samples: what the estimates do</h2>
@@ -412,7 +414,7 @@ test x1 x2         // joint F</div>
     </div>
   </section>
 
-  <!-- ============================== INFERENCE ============================== -->
+  <!-- ============================== INFERENCE: t-TESTS & CIs ============================== -->
   <section id="pane-inf" aria-labelledby="toc-inf" class="pane" hidden>
     <div class="dgp" id="i-dgp"></div>
     <div class="app">
@@ -421,56 +423,52 @@ test x1 x2         // joint F</div>
         <div class="ctl"><label for="i-b1">True β₁ <output id="i-b1o"></output></label><input type="range" id="i-b1" min="-3" max="3" step="0.1" value="-1"></div>
         <div class="ctl"><label for="i-c">H₀: β₁ = c, with c = <output id="i-co"></output></label><input type="range" id="i-c" min="-3" max="3" step="0.1" value="-0.5"></div>
         <div class="ctl row"><label for="i-a">Significance level α</label><select id="i-a"><option value="0.1">0.10 (90% CI)</option><option value="0.05" selected>0.05 (95% CI)</option><option value="0.01">0.01 (99% CI)</option></select></div>
-        <div class="rail-label">Joint test H₀: β₂ = β₃ = 0</div>
-        <div class="ctl"><label for="i-b2">True β₂ <output id="i-b2o"></output></label><input type="range" id="i-b2" min="-1" max="1" step="0.05" value="0.3"></div>
-        <div class="ctl"><label for="i-b3">True β₃ <output id="i-b3o"></output></label><input type="range" id="i-b3" min="-0.3" max="0.3" step="0.01" value="0.05"></div>
         <div class="rail-label">Data</div>
         <div class="ctl"><label for="i-sig">σ (SD of the error u) <output id="i-sigo"></output></label><input type="range" id="i-sig" min="1" max="30" step="0.5" value="10"></div>
         <div class="ctl row"><label for="i-n">Sample size n</label><select id="i-n"><option>20</option><option>50</option><option selected>100</option><option>200</option><option>500</option><option>1000</option></select></div>
         <div class="btns"><button type="button" class="act" id="i-new">Draw new sample</button></div>
         <div class="rail-label">Try this</div>
         <ol class="try">
-          <li>Set c equal to the true β₁ and run the repeated samples. H₀ is true, yet it is rejected about α of the time: the type I error rate.</li>
-          <li>Move c away from the truth. The rejection rate climbs: that is power.</li>
+          <li>Set c equal to the true β₁ and run the repeated samples. H₀ is true, yet it is rejected in about α of the samples: the type I error rate.</li>
+          <li>Move c away from the truth. The rejection count climbs: that is power.</li>
           <li>Switch α from 0.05 to 0.01. The critical value moves out and the CI widens; fewer rejections.</li>
           <li>c is inside the CI exactly when the t-test fails to reject. Check it.</li>
-          <li>Set β₂ = β₃ = 0. The joint F-test should rarely reject.</li>
+          <li>Raise n or lower σ. The CI shrinks and the test gains power.</li>
         </ol>
         <div class="stata">regress y x1 x2 x3
 test x1 = -0.5     // F = t²
-test x2 x3         // joint F
+lincom x1 + 0.5    // reports t
 regress y x1 x2 x3, level(99)</div>
       </aside>
       <main>
-        <div class="plots">
-          <section class="panel" aria-labelledby="i-h1">
-            <h2 id="i-h1">t-test of H₀: β₁ = c</h2>
-            <div class="cv"><canvas id="i-cvT" role="img" aria-label="t distribution with rejection regions and the observed t statistic"></canvas></div>
-            <div class="legend">
-              <span><i class="blk" style="background:var(--reject)"></i>Rejection region (total area α)</span>
-              <span><i class="sw" style="background:var(--long)"></i>observed t</span>
-            </div>
-            <div class="calc" id="i-tcalc"></div>
-          </section>
-          <section class="panel" aria-labelledby="i-h2">
-            <h2 id="i-h2">Joint F-test of H₀: β₂ = β₃ = 0</h2>
-            <div class="cv"><canvas id="i-cvF" role="img" aria-label="F distribution with rejection region and the observed F statistic"></canvas></div>
-            <div class="legend">
-              <span><i class="blk" style="background:var(--reject)"></i>Rejection region (area α)</span>
-              <span><i class="sw" style="background:var(--long)"></i>observed F</span>
-            </div>
-            <div class="calc" id="i-fcalc"></div>
-          </section>
-        </div>
+        <section class="panel" aria-labelledby="i-h1">
+          <h2 id="i-h1">t-test of H₀: β₁ = c</h2>
+          <div class="cv wide"><canvas id="i-cvT" role="img" aria-label="t distribution with rejection regions and the observed t statistic"></canvas></div>
+          <div class="legend">
+            <span><i class="blk" style="background:var(--reject)"></i>Rejection region (total area α)</span>
+            <span><i class="sw" style="background:var(--long)"></i>observed t</span>
+          </div>
+          <div class="calc" id="i-tcalc"></div>
+          <div class="explain">
+            <p><b>What the t-statistic measures.</b> How many standard errors the estimate lies from the hypothesised value:</p>
+            <div class="calc">t = (β̂₁ − c) / se(β̂₁) &nbsp; ~ &nbsp; t with n − k − 1 df if H₀ is true</div>
+            <p>If H₀ is true, β̂₁ is centred on c and t is usually small. A t beyond the critical value is so unlikely under H₀ (probability α) that we reject H₀. The p-value is the probability, under H₀, of a t at least this far from 0.</p>
+            <p><b>Careful with Stata.</b> The t and p columns in the regression output always test c = 0. For any other value, compute t yourself or use <code>test x1 = c</code>, which reports F = t².</p>
+          </div>
+        </section>
         <section class="panel" aria-labelledby="i-h3">
           <h2 id="i-h3">Confidence interval for β₁</h2>
           <div class="cv strip"><canvas id="i-cvCI" role="img" aria-label="Confidence interval for beta1 with c and the true value marked"></canvas></div>
           <div class="calc" id="i-cicalc"></div>
+          <div class="explain">
+            <p><b>A CI is every c the test would not reject.</b> Solving |β̂₁ − c| / se ≤ t<sub>crit</sub> for c gives β̂₁ ± t<sub>crit</sub>·se(β̂₁). So c lies inside the (1 − α) interval exactly when the two-sided test at level α fails to reject.</p>
+            <p><b>What “95%” means.</b> The procedure captures the true β₁ in 95% of samples. A single interval either contains β₁ or it does not; the repeated samples below show this.</p>
+          </div>
         </section>
         <section class="panel" aria-labelledby="i-h4">
-          <h2 id="i-h4">Regression output (unrestricted model)</h2>
+          <h2 id="i-h4">Regression output</h2>
           <div class="tablewrap"><table id="i-tab"></table></div>
-          <p>The t and p columns test H₀: β = 0. For H₀: β₁ = c the t-statistic must be computed as above, or with <code>test x1 = c</code>.</p>
+          <p>The t and p columns test H₀: β = 0.</p>
         </section>
         <section class="panel" aria-labelledby="i-h5">
           <h2 id="i-h5">Repeated samples: 100 confidence intervals</h2>
@@ -483,7 +481,81 @@ regress y x1 x2 x3, level(99)</div>
             <span><i class="sw" style="background:var(--short)"></i>c</span>
           </div>
           <div class="stats" id="i-mcstats"></div>
-          <p>Each line is the confidence interval from one sample of the same true model. Teal intervals contain the true β₁, red ones miss it. Press the button again: the number of red lines changes every time, around 5 at α = 0.05 but rarely exactly 5. That wobble is sampling variation too.</p>
+          <p>Each line is the confidence interval from one sample of the same true model. Teal intervals contain the true β₁, red ones miss it. Intervals that do not cross the dashed line at c are the samples where the test rejects H₀: β₁ = c. Press the button again: the number of red lines changes every time, around 5 at α = 0.05 but rarely exactly 5. That wobble is sampling variation too.</p>
+        </section>
+      </main>
+    </div>
+  </section>
+
+  <!-- ============================== INFERENCE: JOINT F-TESTS ============================== -->
+  <section id="pane-jf" aria-labelledby="toc-jf" class="pane" hidden>
+    <div class="dgp" id="j-dgp"></div>
+    <div class="app">
+      <aside class="rail" aria-label="Controls">
+        <div class="rail-label">The group being tested</div>
+        <div class="ctl"><label for="j-b2">True β₂ <output id="j-b2o"></output></label><input type="range" id="j-b2" min="-2" max="2" step="0.1" value="1"></div>
+        <div class="ctl"><label for="j-b3">True β₃ <output id="j-b3o"></output></label><input type="range" id="j-b3" min="-2" max="2" step="0.1" value="1"></div>
+        <div class="ctl"><label for="j-rho">corr(x₂, x₃) <output id="j-rhoo"></output></label><input type="range" id="j-rho" min="-0.95" max="0.98" step="0.01" value="0.95"></div>
+        <div class="rail-label">Data</div>
+        <div class="ctl"><label for="j-sig">σ (SD of the error u) <output id="j-sigo"></output></label><input type="range" id="j-sig" min="1" max="30" step="0.5" value="10"></div>
+        <div class="ctl row"><label for="j-n">Sample size n</label><select id="j-n"><option>20</option><option>50</option><option selected>100</option><option>200</option><option>500</option></select></div>
+        <div class="ctl row"><label for="j-a">Significance level α</label><select id="j-a"><option value="0.1">0.10</option><option value="0.05" selected>0.05</option><option value="0.01">0.01</option></select></div>
+        <div class="btns"><button type="button" class="act" id="j-new">Draw new sample</button></div>
+        <div class="rail-label">Try this</div>
+        <ol class="try">
+          <li>At the start, x₂ and x₃ are highly correlated. Often neither t is significant, yet F rejects clearly.</li>
+          <li>Lower the correlation to 0. Each variable now has its own variation, the t-tests become significant and they agree with F.</li>
+          <li>Set β₂ = β₃ = 0 and run the repeated samples. H₀ is true, and F rejects in about α of them.</li>
+          <li>Set β₃ = 0 only. x₃ is irrelevant, but F still rejects: H₀ says both are zero, and β₂ is not.</li>
+          <li>With high correlation, set β₂ = 1 and β₃ = −1. The two effects cancel along the direction the data vary in, and even F struggles.</li>
+        </ol>
+        <div class="stata">regress y x1 x2 x3   // unrestricted
+test x2 x3            // joint F
+regress y x1          // restricted</div>
+      </aside>
+      <main>
+        <section class="panel" aria-labelledby="j-h1">
+          <h2 id="j-h1">Two regressions: with and without the tested variables</h2>
+          <div class="tablewrap"><table id="j-tab"></table></div>
+          <div class="explain">
+            <p><b>Why two models.</b> H₀: β₂ = β₃ = 0 says x₂ and x₃ do not belong in the model. Imposing H₀ means dropping them: that is the <i>restricted</i> model. The <i>unrestricted</i> model keeps them. The F-test compares how well the two fit.</p>
+          </div>
+        </section>
+        <div class="plots">
+          <section class="panel" aria-labelledby="j-h2">
+            <h2 id="j-h2">What dropping x₂ and x₃ costs</h2>
+            <div class="bars" id="j-bars"></div>
+            <div class="calc" id="j-calc"></div>
+          </section>
+          <section class="panel" aria-labelledby="j-h3">
+            <h2 id="j-h3">F-distribution under H₀</h2>
+            <div class="cv"><canvas id="j-cvF" role="img" aria-label="F distribution with rejection region and observed F"></canvas></div>
+            <div class="legend">
+              <span><i class="blk" style="background:var(--reject)"></i>Rejection region (area α)</span>
+              <span><i class="sw" style="background:var(--long)"></i>observed F</span>
+            </div>
+          </section>
+        </div>
+        <section class="panel" aria-labelledby="j-h4">
+          <h2 id="j-h4">How the F-statistic works</h2>
+          <div class="explain">
+            <p><b>Dropping variables always raises SSR.</b> Even irrelevant variables absorb a bit of the residuals by chance. The question is whether SSR rises by more than chance would produce:</p>
+            <div class="calc">F = [(SSR<sub>R</sub> − SSR<sub>U</sub>) / q] / [SSR<sub>U</sub> / (n − k − 1)] = [(R²<sub>U</sub> − R²<sub>R</sub>) / q] / [(1 − R²<sub>U</sub>) / (n − k − 1)]</div>
+            <p>The numerator is the extra unexplained variation per dropped variable (q = 2 here). The denominator is σ̂² from the unrestricted model, the benchmark for chance. It comes from the unrestricted model because that estimate of σ² is valid whether or not H₀ is true. Under H₀, F is close to 1 on average and follows an F(q, n − k − 1) distribution.</p>
+            <p><b>Why not just two t-tests?</b> Each t-test asks whether one variable matters <i>holding the other fixed</i>. When x₂ and x₃ move together there is little variation in one with the other held fixed, so both standard errors are large (high VIF) and both t's look small. The F-test asks whether the two matter <i>together</i>, and that the data can answer.</p>
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="j-h5">
+          <h2 id="j-h5">Repeated samples: when do the t-tests and the F-test disagree?</h2>
+          <div class="btns"><button type="button" class="act ghost" id="j-mc">Run 500 samples</button></div>
+          <div class="cv tall"><canvas id="j-cvMC" role="img" aria-label="t-statistics of x2 and x3 across samples, marking samples where the joint F-test rejects"></canvas></div>
+          <div class="legend">
+            <span><i class="blk" style="background:var(--reject)"></i>F rejects H₀</span>
+            <span><i class="blk" style="background:var(--muted)"></i>F does not reject</span>
+            <span><i class="blk" style="border:1.5px dashed var(--ink)"></i>box: both t-tests insignificant</span>
+          </div>
+          <div class="stats" id="j-mcstats"></div>
+          <p>Each dot is one sample, placed at its two t-statistics. Dots inside the box are samples where neither t-test rejects. Red dots inside the box are samples where the variables look useless one at a time but the joint test shows they matter.</p>
         </section>
       </main>
     </div>
