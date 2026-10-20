@@ -409,6 +409,12 @@ test x1 x2         // joint F</div>
             <span><i class="sw" style="background:var(--ink)"></i>true values</span>
           </div>
           <div class="stats" id="v-mcstats"></div>
+          <div class="explain">
+            <p><b>Why repeat the experiment.</b> The standard error is a prediction: how much β̂₁ <i>would</i> vary if we drew new data again and again. A single sample gives one β̂₁, which can land close to the truth even when its SE is huge. Here we redraw the data 500 times, at the chosen correlation and at zero correlation, and look at what the estimates actually do.</p>
+            <p><b>The spread really is inflated.</b> The SD of β̂₁ at this correlation divided by its SD at zero correlation is close to √VIF = 1/√(1 − corr²). The formula Var(β̂₁) = σ² / [SST₁ (1 − r₁²)] is describing something real.</p>
+            <p><b>But there is no bias.</b> The mean of β̂₁ stays near the true −1. Multicollinearity makes estimates noisy, not wrong on average. That is the difference from omitting a variable.</p>
+            <p><b>The cloud is a diagonal.</b> When x₁ and x₂ move together, a sample that overstates β₁ tends to understate β₂, and the reverse. The data pin down their combined effect well but not how to split it between the two. That is why the joint F-test can reject while neither t-test does, as the last count shows.</p>
+          </div>
         </section>
       </main>
     </div>
