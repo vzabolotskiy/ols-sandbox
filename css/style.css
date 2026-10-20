@@ -49,12 +49,11 @@ h1 { font-family: var(--f-display); font-weight: 700; font-size: clamp(26px, 4vw
 h2 { font-family: var(--f-display); font-weight: 500; font-size: 18px; margin: 0; text-wrap: balance; }
 code, .mono { font-family: var(--f-mono); font-size: 0.88em; }
 
-/* chapter TOC */
+/* topic TOC */
 .shell { display: grid; grid-template-columns: 228px minmax(0, 1fr); gap: 20px; align-items: start; }
 .toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: flex; flex-direction: column; gap: 14px; padding: 4px 0; }
 .chap { display: flex; flex-direction: column; gap: 2px; }
-.chn { font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); letter-spacing: 0.04em; }
-.cht { font-family: var(--f-display); font-weight: 500; font-size: 15px; margin-bottom: 3px; }
+.cht { font-family: var(--f-body); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
 .toc button { font: inherit; font-size: 14px; text-align: left; padding: 5px 10px 5px 12px; border: none; border-left: 2px solid var(--line); background: none; color: var(--muted); cursor: pointer; border-radius: 0 6px 6px 0; }
 .toc button:hover { color: var(--ink); background: var(--surface); }
 .toc button[aria-current="page"] { color: var(--ink); font-weight: 600; border-left-color: var(--long); background: var(--surface); }
@@ -64,7 +63,8 @@ code, .mono { font-family: var(--f-mono); font-size: 0.88em; }
 }
 .content { min-width: 0; }
 .pane { display: flex; flex-direction: column; gap: 14px; }
-.pane-title { font-family: var(--f-display); font-weight: 700; font-size: 22px; margin: 0; }
+.pane-title { font-family: var(--f-display); font-weight: 700; font-size: 22px; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.eyebrow { font-family: var(--f-body); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 pre.stata.out { font-size: 12px; line-height: 1.45; }
 .anova td, .anova th { text-align: right; }
 .dgp { font-family: var(--f-mono); font-size: 13.5px; color: var(--muted); padding: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; white-space: nowrap; }

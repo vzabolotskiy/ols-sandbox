@@ -21,21 +21,20 @@
 
   <div class="shell">
     <nav class="toc" aria-label="Contents">
-      <div class="chap"><span class="chn">Ch. 1</span><span class="cht">Simple regression</span>
-        <button type="button" id="toc-ls" data-k="ls">Least squares &amp; R²</button>
-        <button type="button" id="toc-logs" data-k="logs">Log functional forms</button></div>
-      <div class="chap"><span class="chn">Ch. 2</span><span class="cht">Simple regression inference</span>
-        <button type="button" id="toc-ci" data-k="ci">Sampling distribution &amp; CIs</button>
-        <button type="button" id="toc-anova" data-k="anova">ANOVA, F &amp; prediction</button></div>
-      <div class="chap"><span class="chn">Ch. 3</span><span class="cht">Multiple regression</span>
+      <div class="chap"><span class="cht">Fitting a line</span>
+        <button type="button" id="toc-ls" data-k="ls">Least squares &amp; R²</button></div>
+      <div class="chap"><span class="cht">Multiple regression</span>
         <button type="button" id="toc-ovb" data-k="ovb">Controls &amp; omitted variables</button>
         <button type="button" id="toc-vif" data-k="vif">Multicollinearity &amp; VIF</button></div>
-      <div class="chap"><span class="chn">Ch. 4</span><span class="cht">Multiple regression inference</span>
-        <button type="button" id="toc-inf" data-k="inf">t, F &amp; confidence intervals</button></div>
-      <div class="chap"><span class="chn">Ch. 5</span><span class="cht">Further issues</span>
+      <div class="chap"><span class="cht">Inference</span>
+        <button type="button" id="toc-ci" data-k="ci">Sampling distribution &amp; CIs</button>
+        <button type="button" id="toc-anova" data-k="anova">ANOVA, F-test &amp; prediction</button>
+        <button type="button" id="toc-inf" data-k="inf">t-tests, joint F-tests &amp; CIs</button></div>
+      <div class="chap"><span class="cht">Functional form</span>
+        <button type="button" id="toc-logs" data-k="logs">Logarithms</button>
         <button type="button" id="toc-form" data-k="form">Quadratics, adjusted R² &amp; prediction</button></div>
-      <div class="chap"><span class="chn">Ch. 7</span><span class="cht">Heteroskedasticity</span>
-        <button type="button" id="toc-het" data-k="het">Usual vs robust SEs</button></div>
+      <div class="chap"><span class="cht">Assumptions</span>
+        <button type="button" id="toc-het" data-k="het">Heteroskedasticity &amp; robust SEs</button></div>
     </nav>
     <div class="content">
   <!-- ============================== CH1: LEAST SQUARES ============================== -->
@@ -119,7 +118,7 @@ correlate y x</div>
           <li>True log-log, fit log-log. In log units the data lie along a straight line; β̂₁ is a constant elasticity.</li>
           <li>Keep the data, fit level-level. The straight line misses the curvature, and its elasticity changes along the curve.</li>
           <li>Switch the data to log-level: constant percentage growth per unit of x.</li>
-          <li>Compare R² across the four columns. Only models with the same dependent variable are comparable (Ch. 5 §3).</li>
+          <li>Compare R² across the four columns. Only models with the same dependent variable are comparable (see the note under the table).</li>
         </ol>
         <div class="stata">gen lny = log(y)
 gen lnx = log(x)
@@ -141,7 +140,7 @@ reg y lnx       // level-log</div>
           <section class="panel" aria-labelledby="g-h2">
             <h2 id="g-h2">In the units the model is estimated in</h2>
             <div class="cv"><canvas id="g-cvTr" role="img" aria-label="Transformed scatter with the straight OLS line"></canvas></div>
-            <p>OLS fits a straight line here. “Intrinsically linear” means: curved in levels, linear after transforming the data (Ch. 1 §7).</p>
+            <p>OLS fits a straight line here. “Intrinsically linear” means: curved in levels, linear after transforming the data.</p>
           </section>
         </div>
         <section class="panel" aria-labelledby="g-h3">
@@ -211,7 +210,7 @@ reg y x, level(80)</div>
           <h2 id="c-h4">Repeated samples: 1,000 draws with the same x's</h2>
           <div class="btns"><button type="button" class="act ghost" id="c-mc">Run 1,000 samples</button></div>
           <div class="stats" id="c-mcstats"></div>
-          <p>The x values are held fixed and only the errors are redrawn, which is the setting of the variance formula in Ch. 2 §3.</p>
+          <p>The x values are held fixed and only the errors are redrawn, which is the setting in which the formula Var(β̂₁) = σ² / SSTₓ holds.</p>
         </section>
       </main>
     </div>
@@ -325,7 +324,7 @@ avplot x1           // partialled-out plot</div>
             <h2 id="o-h2">Partialled out: “pure” y against “pure” x₁</h2>
             <div class="cv"><canvas id="o-cvAV" role="img" aria-label="Added-variable plot: residualized y against residualized x1"></canvas></div>
             <div class="legend"><span><i class="sw" style="background:var(--long)"></i>Slope = β̂₁ from the long regression</span></div>
-            <p>Both axes are residuals after regressing on the other regressors (Frisch–Waugh–Lovell, Ch. 3 §4). Same as Stata's <code>avplot x1</code>.</p>
+            <p>Both axes are residuals after regressing on the other regressors (Frisch–Waugh–Lovell). Same as Stata's <code>avplot x1</code>.</p>
           </section>
         </div>
         <section class="panel" aria-labelledby="o-h3">
@@ -367,7 +366,7 @@ avplot x1           // partialled-out plot</div>
         <div class="rail-label">Try this</div>
         <ol class="try">
           <li>Start at corr 0: VIF = 1, nothing is inflated.</li>
-          <li>Slide to about 0.95: r₁² ≈ 0.9 and VIF ≈ 10, the rule of thumb in the notes.</li>
+          <li>Slide to about 0.95: r₁² ≈ 0.9 and VIF ≈ 10, the usual rule-of-thumb threshold.</li>
           <li>Push to 0.98 with σ = 10, n = 100. Often neither t is significant, yet the F-test rejects.</li>
           <li>Raise n. More data shrinks SST-driven variance; the VIF itself does not move.</li>
           <li>Run the repeated samples. The cloud of (β̂₁, β̂₂) stretches into a thin diagonal: the data pin down a combination, not each slope.</li>
@@ -552,7 +551,7 @@ predict sef, stdf    // se for a new obs.</div>
               <span><i class="sw" style="background:var(--short)"></i>R²</span>
               <span><i class="sw" style="background:var(--long)"></i>Adjusted R²</span>
             </div>
-            <p>Each step adds one pure-noise regressor to the quadratic model. Adjusted R² goes up only when the new variable's |t| exceeds 1 (Ch. 5 §2).</p>
+            <p>Each step adds one pure-noise regressor to the quadratic model. Adjusted R² goes up only when the new variable's |t| exceeds 1.</p>
           </section>
         </div>
       </main>
@@ -566,7 +565,7 @@ predict sef, stdf    // se for a new obs.</div>
       <aside class="rail" aria-label="Controls">
         <div class="rail-label">Error variance</div>
         <div class="ctl"><label for="h-g">Heteroskedasticity γ <output id="h-go"></output></label><input type="range" id="h-g" min="-1" max="1.5" step="0.05" value="1"></div>
-        <span class="hint">γ = 0 is homoskedastic (Assumption 5 holds). γ &gt; 0: the spread of u grows with x₁. γ &lt; 0: it shrinks.</span>
+        <span class="hint">γ = 0 is homoskedastic: Var(u | x) is constant. γ &gt; 0: the spread of u grows with x₁. γ &lt; 0: it shrinks.</span>
         <div class="ctl"><label for="h-sig">σ (average SD of u) <output id="h-sigo"></output></label><input type="range" id="h-sig" min="1" max="20" step="0.5" value="5"></div>
         <div class="ctl row"><label for="h-n">Sample size n</label><select id="h-n"><option>30</option><option>100</option><option selected>200</option><option>500</option><option>1000</option></select></div>
         <div class="btns"><button type="button" class="act" id="h-new">Draw new sample</button></div>

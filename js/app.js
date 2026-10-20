@@ -59,7 +59,7 @@ const ovb = {
         (L3.p[3] < 0.05 ? " It is “significant” at 5% in this sample: that happens 1 time in 20 by chance." : ""));
     }
     $("o-notes").innerHTML = out.map(s => `<li>${s}</li>`).join("");
-    $("o-ovb").innerHTML = `Omitted variable bias (Ch. 3 §7), exact in-sample:<br>
+    $("o-ovb").innerHTML = `Omitted variable bias, exact in-sample:<br>
       <span class="s">β̃₁</span> = <span class="l">β̂₁</span> + <span class="l">β̂₂</span> · δ̃₁<br>
       <span class="s">${f(S.b[1])}</span> = <span class="l">${f(Lg.b[1])}</span> + <span class="l">${f(Lg.b[2])}</span> · ${f(delta)} &nbsp;(bias = ${f(Lg.b[2] * delta)})<br>
       <span class="m">δ̃₁ = slope from regressing x₂ on x₁. Population value: corr · 3/2 = ${f(1.5 * p.rho, 2)}.</span>`;
@@ -139,7 +139,7 @@ const vif = {
         L.regTable([{ title: "regress y x1 x2", cls: "c-long", R: S, names: ["x1"] }], [["x1", "x₁"], ["_cons", "constant"]], [["R²", m => f(m.R.r2, 4)], ["Root MSE", m => f(m.R.rmse, 3)]]);
       $("v-ftest").innerHTML = `<span class="r">X′X cannot be inverted.</span> Any change in x₁ comes with an exact change in x₂, so the data cannot separate β₁ from β₂.<br>
         <span class="m">What Stata reports for x₁ (${f(S.b[1])}) is β₁ + 1.5·β₂ = −1 + 3 = 2: the combined effect, not β₁.</span>`;
-      $("v-formula").innerHTML = `r₁² = 1 &nbsp;⇒&nbsp; VIF = 1/(1 − 1) = <span class="r">∞</span><br><span class="m">Assumption 3 (no perfect multicollinearity) fails.</span>`;
+      $("v-formula").innerHTML = `r₁² = 1 &nbsp;⇒&nbsp; VIF = 1/(1 − 1) = <span class="r">∞</span><br><span class="m">The no-perfect-multicollinearity assumption fails.</span>`;
     } else {
       const se0 = R.rmse / Math.sqrt(SST1);
       $("v-formula").innerHTML = `se(β̂₁) = σ̂ / √[SST₁ (1 − r₁²)]<br>
@@ -312,7 +312,7 @@ const inf = {
 wire("inf", inf, ["i-b1", "i-c", "i-a", "i-b2", "i-b3", "i-sig", "i-n"], "i");
 
 // =====================================================================
-// 4. Functional form & fit (Ch. 5)
+// 4. Quadratics, adjusted R² & prediction
 // =====================================================================
 const form = {
   seed: 16180, Z: null, mc: null, last: null,
@@ -341,11 +341,11 @@ const form = {
       ["R²", m => f(m.R.r2, 4)], ["Adjusted R²", m => f(m.R.adj, 4)], ["Root MSE (σ̂)", m => f(m.R.rmse, 3)], ["regressors k", m => m.R.k - 1], ["df residual", m => m.R.df]]) +
       (Qk ? `<caption style="caption-side:bottom;text-align:left;font-family:var(--f-body);font-size:12.5px;color:var(--muted);padding-top:6px">Coefficients on the ${p.k} noise regressors are not shown.</caption>` : "");
     const trueME = p.b + 2 * p.q * x0, inRange = isFinite(tp) && tp >= xmin && tp <= xmax;
-    $("q-calc").innerHTML = `<b>Marginal effect at x = ${f(x0, 1)}</b> (Ch. 5 §4)<br>
+    $("q-calc").innerHTML = `<b>Marginal effect at x = ${f(x0, 1)}</b><br>
       ∂ŷ/∂x = β̂₁ + 2β̂₂·x = ${f(Q.b[1], 3)} + 2 × ${f(Q.b[2], 4)} × ${f(x0, 1)} = <span class="l">${f(ME, 3)}</span> <span class="m">(se ${f(seME, 3)}; true ${f(trueME, 3)})</span><br>
       <span class="m">The linear model claims one slope everywhere: </span><span class="s">${f(Lin.b[1], 3)}</span><br>
       Turning point x* = −β̂₁ / (2β̂₂) = ${f(tp, 2)} <span class="m">${inRange ? "(inside the data range)" : `(outside the data, x ∈ [${f(xmin, 1)}, ${f(xmax, 1)}]: do not interpret)`}</span><br><br>
-      <b>Prediction at x = ${f(x0, 1)}</b> (Ch. 5 §5)<br>
+      <b>Prediction at x = ${f(x0, 1)}</b><br>
       ŷ₀ = ${f(y0, 2)} <span class="m">(true E[y | x₀] = ${f(50 + p.b * x0 + p.q * x0 * x0, 2)})</span><br>
       se(ŷ₀) = ${f(seY, 3)} &nbsp;·&nbsp; σ̂ = ${f(Q.rmse, 3)} &nbsp;·&nbsp; se(ê₀) = √(se(ŷ₀)² + σ̂²) = ${f(seE, 3)}<br>
       95% CI for the mean: <span class="l">[${f(y0 - tc * seY, 2)}, ${f(y0 + tc * seY, 2)}]</span><br>
@@ -470,7 +470,7 @@ const het = {
 wire("het", het, ["h-g", "h-sig", "h-n"], "h");
 
 // =====================================================================
-// Ch. 1a  Least squares & R²
+// Least squares & R²
 // =====================================================================
 const ls = {
   seed: 1601, Z: null, last: null,
@@ -499,11 +499,11 @@ const ls = {
     const sx = Math.sqrt(Sxx / (n - 1)), sy = Math.sqrt(Syy / (n - 1)), cov = Sxy / (n - 1), ar = Math.abs(r);
     const strength = !isFinite(r) ? "" : ar === 0 ? "none" : ar <= 0.3 ? "weak" : ar <= 0.7 ? "moderate" : "strong";
     const sumRes = R ? R.res.reduce((a, v) => a + v, 0) : 0;
-    $("s-calc").innerHTML = `<b>Least squares formulas</b> (Ch. 1 §3)<br>
+    $("s-calc").innerHTML = `<b>Least squares formulas</b><br>
       β̂₁ = Σ(xᵢ − x̄)(yᵢ − ȳ) / Σ(xᵢ − x̄)² = ${f(Sxy, 2)} / ${f(Sxx, 2)} = <span class="l">${f(b1, 4)}</span><br>
       β̂₀ = ȳ − β̂₁·x̄ = ${f(yb, 3)} − ${f(b1, 4)} × ${f(xb, 3)} = <span class="l">${f(b0, 3)}</span><br>
       Σûᵢ = ${f(Math.abs(sumRes) < 1e-8 ? 0 : sumRes, 6)} <span class="m">(OLS residuals always sum to zero)</span><br><br>
-      <b>Goodness of fit</b> (Ch. 1 §4–5)<br>
+      <b>Goodness of fit</b><br>
       SST = SSE + SSR: ${f(Syy, 1)} = ${f(sse, 1)} + ${f(ssr, 1)}<br>
       r² = SSE / SST = ${f(sse, 1)} / ${f(Syy, 1)} = <span class="l">${f(sse / Syy, 4)}</span> <span class="m">→ x explains ${f(100 * sse / Syy, 1)}% of the variability of y</span><br>
       Cov(x, y) = ${f(cov, 3)} &nbsp;·&nbsp; r = Cov / (sₓ·s_y) = ${f(cov, 3)} / (${f(sx, 3)} × ${f(sy, 3)}) = <span class="l">${f(r, 4)}</span> <span class="m">(${strength})</span><br>
@@ -541,7 +541,7 @@ wire("ls", ls, ["s-b1", "s-sig", "s-n", "s-ys", "s-yh", "s-show"], "s");
 $("s-snap").addEventListener("click", () => { const l = ls.last; if (!l) return; $("s-ys").value = l.b1; $("s-yh").value = 0; $("s-show").checked = true; ls.render(); });
 
 // =====================================================================
-// Ch. 1b  Log functional forms
+// Logarithms
 // =====================================================================
 const FORMS = {
   ll: { name: "level-level", eq: b => `y = 20 ${sgn(b, 2)}·x + u`, rng: [-1, 3, 0.05, 1.5], sd: 3, logy: false, logx: false, b0: 20 },
@@ -598,7 +598,7 @@ const logs = {
       ${txt}<br>
       Elasticity at the mean of x (x̄ = ${f(xm, 2)}): <span class="l">${f(elas, 3)}</span> <span class="m">${{ ll: "= β̂₁·x̄/ŷ, changes along the line", gl: "= β̂₁·x, grows with x", lg: "= β̂₁/ŷ, changes along the curve", gg: "= β̂₁, the same at every x" }[p.fit]}</span><br>
       ${truth}`;
-    $("g-levnote").textContent = G.logy ? "For log-y models the curve is exp(fitted ln y) × e^(σ̂²/2), the adjustment factor from Ch. 5 §3." : "";
+    $("g-levnote").textContent = G.logy ? "For log-y models the curve is exp(fitted ln y) × e^(σ̂²/2): the usual adjustment, because exp(mean of ln y) understates the mean of y." : "";
     this.draw();
   },
   draw() {
@@ -618,7 +618,7 @@ const logs = {
 wire("logs", logs, ["g-form", "g-fit", "g-b1", "g-noise", "g-n"], "g");
 
 // =====================================================================
-// Ch. 2a  Sampling distribution, CIs and the t-test
+// Sampling distribution, CIs and the t-test
 // =====================================================================
 const ci = {
   seed: 1402, Z: null, mc: null, last: null,
@@ -634,13 +634,13 @@ const ci = {
     const others = []; for (let r = 0; r < 30; r++) { const e = L.normals(this.seed + 500 + r, n, 1)[0]; others.push(L.ols([x], this.ys(x, p, e)).b); }
     this.last = { p, x, y, R, SSTx, tc, lo, hi, sdTrue, others, lv };
     const rej = Math.abs(R.t[1]) > tc;
-    $("c-calc").innerHTML = `<b>Standard error</b> (Ch. 2 §3)<br>
+    $("c-calc").innerHTML = `<b>Standard error</b><br>
       σ̂ = √[SSR/(n − 2)] = √(${f(R.ssr, 1)} / ${R.df}) = ${f(R.rmse, 3)} <span class="m">(Root MSE)</span><br>
       se(β̂₁) = σ̂ / √Σ(xᵢ − x̄)² = ${f(R.rmse, 3)} / √${f(SSTx, 2)} = <span class="l">${f(R.se[1], 4)}</span> <span class="m">(true sd(β̂₁) = σ/√SSTₓ = ${f(sdTrue, 4)})</span><br><br>
       <b>${lv}% confidence interval</b><br>
       β̂₁ ± t·se(β̂₁) = ${f(R.b[1], 3)} ± ${f(tc, 3)} × ${f(R.se[1], 4)} = <span class="l">[${f(lo, 3)}, ${f(hi, 3)}]</span> <span class="m">(t with df = n − 2 = ${R.df})</span><br>
       <span class="m">${lo <= p.b1 && p.b1 <= hi ? "This interval contains the true β₁." : "This interval misses the true β₁: it happens to " + (100 - lv) + "% of intervals."}</span><br><br>
-      <b>t-test of H₀: β₁ = 0</b> (Ch. 2 §4), α = ${f(a, 2)}<br>
+      <b>t-test of H₀: β₁ = 0</b>, α = ${f(a, 2)}<br>
       t = β̂₁ / se(β̂₁) = ${f(R.b[1], 3)} / ${f(R.se[1], 4)} = <span class="l">${f(R.t[1], 3)}</span> &nbsp;·&nbsp; critical |t| = ${f(tc, 3)} &nbsp;·&nbsp; p = ${fp(R.p[1])} &nbsp;${verdict(rej)}`;
     $("c-stata").textContent = L.stataOut(R, "y", ["x"], p.lev);
     this.draw();
@@ -685,7 +685,7 @@ const ci = {
 wire("ci", ci, ["c-b1", "c-sig", "c-n", "c-lev"], "c");
 
 // =====================================================================
-// Ch. 2b  ANOVA, F-test and prediction
+// ANOVA, F-test and prediction
 // =====================================================================
 const anova = {
   seed: 1714, Z: null, last: null,
@@ -747,13 +747,13 @@ const anova = {
 wire("anova", anova, ["a-b1", "a-sig", "a-n", "a-a", "a-xs"], "a");
 
 // =====================================================================
-// Chapter TOC, resizing, theme
+// Topic TOC, resizing, theme
 // =====================================================================
-const keys = ["ls", "logs", "ci", "anova", "ovb", "vif", "inf", "form", "het"];
+const keys = ["ls", "ovb", "vif", "ci", "anova", "inf", "logs", "form", "het"];
 const btns = keys.map(k => $("toc-" + k));
 keys.forEach((k, i) => {                       // pane heading from the TOC entry
   const b = btns[i], chap = b.closest(".chap"), h = document.createElement("h2");
-  h.className = "pane-title"; h.textContent = `${chap.querySelector(".chn").textContent} · ${b.textContent}`;
+  h.className = "pane-title"; h.innerHTML = `<span class="eyebrow">${chap.querySelector(".cht").textContent}</span>${b.innerHTML}`;
   $("pane-" + k).prepend(h);
 });
 let active = "ls";
