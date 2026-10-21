@@ -11,7 +11,10 @@ const modules = {};
 function wire(key, mod, inputs, pre) {
   if (!inputs.every(id => $(id))) { console.warn("OLS Sandbox: markup for tab \"" + key + "\" is missing; skipping it"); return; }
   modules[key] = mod;
-  inputs.forEach(id => $(id).addEventListener("input", () => { mod.mc = null; mod.render(); }));
+  inputs.forEach(id => {
+    const el = $(id), go = () => { mod.mc = null; mod.render(); };
+    el.addEventListener(el.tagName === "SELECT" || el.type === "checkbox" || el.type === "radio" ? "change" : "input", go);   // "change" is reliable for these in every browser
+  });
   const nb = $(pre + "-new"); if (nb) nb.addEventListener("click", () => { mod.seed = L.nextSeed(mod.seed); mod.Z = null; mod.mc = null; mod.render(); });
   const mb = $(pre + "-mc"); if (mb) mb.addEventListener("click", () => { mb.disabled = true; setTimeout(() => { mod.runMC(); mb.disabled = false; mod.draw(); }, 10); });
 }
@@ -500,7 +503,7 @@ wire("form", form, ["q-b", "q-q", "q-sig", "q-n", "q-x0", "q-k"], "q");
 // =====================================================================
 const het = {
   seed: 14142, Z: null, mc: null, last: null,
-  P() { return { g: num("h-g"), sig: num("h-sig"), n: num("h-n"), shape: $("h-shape").value }; },
+  P() { return { g: num("h-g"), sig: num("h-sig"), n: num("h-n"), shape: $("h-shape-mid").checked ? "mid" : "fan" }; },
   sdu(p, x1) {                                    // both patterns keep E[Var(u|x)] = σ²
     const z = (x1 - 10) / 2;
     return p.shape === "mid" ? p.sig * Math.exp(-p.g * z * z / 2) * Math.pow(1 + 2 * p.g, 0.25) : p.sig * Math.exp(p.g * z - p.g * p.g);
@@ -585,7 +588,7 @@ const het = {
     this.mc = { p, b, seU, seR, covU: cu / N, covR: cr / N, bp: bp / N };
   }
 };
-wire("het", het, ["h-shape", "h-g", "h-sig", "h-n"], "h");
+wire("het", het, ["h-shape-fan", "h-shape-mid", "h-g", "h-sig", "h-n"], "h");
 
 // =====================================================================
 // Least squares & R²
@@ -939,6 +942,13 @@ const ro = new ResizeObserver(soon); document.querySelectorAll(".pane main").for
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", soon);
 new MutationObserver(soon).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(soon);
+
+// true-model line: split "a · b · c" into separate items that wrap as whole units instead of scrolling
+const fmtDgp = el => {
+  if (!el.innerHTML || el.querySelector(".dgi")) return;
+  el.innerHTML = el.innerHTML.split(/\s*&nbsp;·&nbsp;\s*/).map(s => `<span class="dgi">${s}</span>`).join("");
+};
+document.querySelectorAll(".dgp").forEach(el => new MutationObserver(() => fmtDgp(el)).observe(el, { childList: true }));
 
 let start = (location.hash || "").replace("#", "");
 if (!modules[start]) { try { start = localStorage.getItem("olsSandboxTab") || "ls"; } catch (e) { start = "ls"; } }

@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=6db21b78">
 </head>
 <body>
 <div class="wrap">
@@ -699,8 +699,10 @@ predict sef, stdf    // se for a new obs.</div>
     <div class="dgp" id="h-dgp"></div>
     <div class="app">
       <aside class="rail" aria-label="Controls">
-        <div class="rail-label">Error variance</div>
-        <div class="ctl row"><label for="h-shape">Pattern</label><select id="h-shape"><option value="fan" selected>spread grows with x₁</option><option value="mid">spread largest in the middle of x₁</option></select></div>
+        <div class="rail-label">Pattern of the error variance</div>
+        <label class="check" for="h-shape-fan"><input type="radio" name="h-shape" id="h-shape-fan" value="fan" checked><span>Spread grows with x₁ (fan)</span></label>
+        <label class="check" for="h-shape-mid"><input type="radio" name="h-shape" id="h-shape-mid" value="mid"><span>Spread largest in the middle of x₁</span></label>
+        <div class="rail-label">Strength</div>
         <div class="ctl"><label for="h-g">Heteroskedasticity γ <output id="h-go"></output></label><input type="range" id="h-g" min="0" max="1.5" step="0.05" value="1"></div>
         <span class="hint">γ = 0 is homoskedastic: Var(u | x) is constant. Larger γ means stronger heteroskedasticity in the chosen pattern.</span>
         <div class="ctl"><label for="h-sig">σ (average SD of u) <output id="h-sigo"></output></label><input type="range" id="h-sig" min="1" max="20" step="0.5" value="5"></div>
@@ -789,7 +791,7 @@ regress y x1 x2, vce(robust)</div>
   <footer>All data are simulated: x₁ ~ N(10, 2²) and x₂ ~ N(20, 3²) unless a tab says otherwise, u ~ normal with mean 0. Coefficients, standard errors, tests and p-values are computed by OLS in your browser and match Stata's <code>regress</code> output.</footer>
 </div>
 
-<script src="js/lib.js"></script>
-<script src="js/app.js"></script>
+<script src="js/lib.js?v=3c0b7d11"></script>
+<script src="js/app.js?v=05016064"></script>
 </body>
 </html>
