@@ -1,7 +1,8 @@
 // ===================== Modules =====================
 (() => {
-const L = Lib, $ = id => document.getElementById(id), num = id => +$(id).value;
+const L = Lib, $ = id => document.getElementById(id), num = id => { const e = $(id); return e.dataset.vals ? +e.dataset.vals.split(",")[+e.value] : +e.value; };
 const { f, fp, sgn, pct, css } = L;
+const pS = v => (isFinite(v) ? v : 1).toFixed(4);   // Stata-style p-values in the Stata panels
 const verdict = rej => `<span class="verdict ${rej ? "rej" : "acc"}">${rej ? "Reject H₀" : "Fail to reject H₀"}</span>`;
 const stat = (k, v) => `<div><span class="k">${k}</span><span class="v">${v}</span></div>`;
 const visible = cv => cv && cv.clientWidth > 0;
@@ -72,6 +73,11 @@ const ovb = {
       δ₁ = Cov(x₁, x₂) / Var(x₁) = (corr · SD₁ · SD₂) / SD₁² = (${f(p.rho, 2)} × 2 × 3) / 2² = <span class="l">${f(1.5 * p.rho, 3)}</span><br>
       bias = β₂ · δ₁ = ${f(p.b2, 1)} × ${f(1.5 * p.rho, 3)} = <span class="s">${f(p.b2 * 1.5 * p.rho, 3)}</span> &nbsp;<span class="m">(${Math.abs(p.b2 * p.rho) < 1e-9 ? "no bias" : (p.b2 * p.rho > 0 ? "upward: sign(β₂) = sign(corr)" : "downward: sign(β₂) ≠ sign(corr)")})</span><br>
       E[β̃₁] = β₁ + β₂ · δ₁ = ${f(p.b1, 1)} + ${f(p.b2 * 1.5 * p.rho, 3)} = <span class="s">${f(p.b1 + p.b2 * 1.5 * p.rho, 3)}</span> &nbsp;<span class="m">vs. ${f(S.b[1], 3)} in this sample</span>`;
+    $("o-stata").textContent = [". regress y x1                   // short regression", "", L.stataOut(S, "y", ["x1"]), "",
+      ". regress y x1 x2                // long regression", "", L.stataOut(Lg, "y", ["x1", "x2"]), "",
+      `. regress x2 x1                  // slope = δ̃₁ = ${f(delta, 4)}`,
+      `.                                // check: ${f(Lg.b[1], 4)} + ${f(Lg.b[2], 4)} × ${f(delta, 4)} = ${f(S.b[1], 4)}`,
+      ". avplot x1                      // the partialled-out plot"].join("\n");
     this.draw();
   },
   draw() {
@@ -165,6 +171,12 @@ const vif = {
         (!t1 && !t2 && Fr ? `<br><span class="l">Neither slope is significant alone, but together they clearly matter: the data cannot tell which one does the work.</span>` : "");
     }
     if (p.perf) $("v-bars").innerHTML = "";
+    if (R) $("v-stata").textContent = [". regress y x1 x2", "", L.stataOut(R, "y", ["x1", "x2"]), "",
+      `. estat vif                      // VIF = ${f(VIF, 2)} for both x1 and x2 (1/VIF = ${f(1 / VIF, 4)})`,
+      `. regress x1 x2                  // R-squared = r₁² = ${f(r1, 4)}`,
+      `. test x1 x2                     // F(2, ${R.df}) = ${f(R.F, 2)}, Prob > F = ${pS(R.pF)}`].join("\n");
+    else $("v-stata").textContent = [". regress y x1 x2", "note: x2 omitted because of collinearity.", "",
+      L.stataOut(L.ols([d.x1], d.y), "y", ["x1"]), "", "// Stata drops x2: the data cannot separate β₁ from β₂."].join("\n");
     this.draw();
   },
   draw() {
@@ -249,6 +261,9 @@ const inf = {
       <span class="m">This interval ${hi >= p.b1 && lo <= p.b1 ? "contains" : "misses"} the true β₁ = ${f(p.b1, 1)}.</span>`;
     $("i-tab").innerHTML = L.regTable([{ title: "regress y x1 x2 x3", cls: "c-long", R: U, names: ["x1", "x2", "x3"] }], [["x1", "x₁"], ["x2", "x₂"], ["x3", "x₃"], ["_cons", "constant"]], [
       ["R²", m => f(m.R.r2, 4)], ["Root MSE (σ̂)", m => f(m.R.rmse, 3)], ["df residual", m => m.R.df]]);
+    $("i-stata").textContent = [`. regress y x1 x2 x3${lev === 95 ? "" : `, level(${lev})`}`, "", L.stataOut(U, "y", ["x1", "x2", "x3"], 1 - p.a), "",
+      `. test x1 = ${f(p.c, 1)}                  // F(1, ${U.df}) = ${f(S.t ** 2, 2)} = t², Prob > F = ${pS(S.pt)}`,
+      `. lincom x1 - (${f(p.c, 1)})              // estimate ${f(U.b[1] - p.c, 4)}, se ${f(U.se[1], 4)}, t = ${f(S.t, 2)}`].join("\n");
     this.draw();
   },
   draw() {
@@ -346,6 +361,9 @@ const jf = {
       critical F(2, ${U.df}) at α = ${p.a}: <span class="r">${f(Fc, 3)}</span> &nbsp;·&nbsp; p = ${fp(S.pF)} &nbsp; ${verdict(rejF)}<br><br>
       Individual t-tests (critical |t| = ${f(tc, 2)}):<br>
       t₂ = ${f(t2, 2)} (p = ${fp(U.p[2])}) ${verdict(s2)} &nbsp; t₃ = ${f(t3, 2)} (p = ${fp(U.p[3])}) ${verdict(s3)}${disagree}`;
+    $("j-stata").textContent = [". regress y x1 x2 x3             // unrestricted", "", L.stataOut(U, "y", ["x1", "x2", "x3"]), "",
+      `. test x2 x3                     // F(2, ${U.df}) = ${f(S.F, 2)}, Prob > F = ${pS(S.pF)}`,
+      `. regress y x1                   // restricted: SSR = ${f(Rr.ssr, 1)} vs ${f(U.ssr, 1)} unrestricted`].join("\n");
     this.draw();
   },
   draw() {
@@ -413,8 +431,11 @@ const form = {
     const { x, x2, y } = this.data(Z, p, n);
     const noise = Array.from({ length: 20 }, (_, j) => Z[2 + j].subarray(0, n));
     const Lin = L.ols([x], y), Q = L.ols([x, x2], y), path = [];
-    for (let j = 0; j <= 20; j++) { const R = j ? L.ols([x, x2, ...noise.slice(0, j)], y) : Q; path.push([R.r2, R.adj]); }
-    const Qk = p.k ? L.ols([x, x2, ...noise.slice(0, p.k)], y) : null;
+    const kmax = Math.min(20, n - 5);                // keep at least 2 residual df: n − (3 + k) ≥ 2
+    for (let j = 0; j <= kmax; j++) { const R = j ? L.ols([x, x2, ...noise.slice(0, j)], y) : Q; if (!R) break; path.push([R.r2, R.adj]); }
+    const kUse = Math.min(p.k, path.length - 1);
+    if (kUse < p.k) $("q-ko").textContent = `${p.k} (max ${kUse} with n = ${n})`;
+    const Qk = kUse ? L.ols([x, x2, ...noise.slice(0, kUse)], y) : null;
     // marginal effect, turning point, prediction
     const V = Q.V, x0 = p.x0, ME = Q.b[1] + 2 * Q.b[2] * x0;
     const seME = Math.sqrt(V[1][1] + 4 * x0 * x0 * V[2][2] + 4 * x0 * V[1][2]);
@@ -424,10 +445,10 @@ const form = {
     const tp = -Q.b[1] / (2 * Q.b[2]), [xmin, xmax] = L.range([x], 0);
     this.last = { p, x, x2, y, Lin, Q, Qk, path, ME, seME, y0, seY, seE, tc, tp, xmin, xmax };
     const models = [{ title: "Linear: y on x", cls: "c-short", R: Lin, names: ["x"] }, { title: "Quadratic: y on x, x²", cls: "c-long", R: Q, names: ["x", "x2"], dec: 4 }];
-    if (Qk) models.push({ title: `Quadratic + ${p.k} noise`, cls: "c-long", R: Qk, names: ["x", "x2"], dec: 4 });
+    if (Qk) models.push({ title: `Quadratic + ${kUse} noise`, cls: "c-long", R: Qk, names: ["x", "x2"], dec: 4 });
     $("q-tab").innerHTML = L.regTable(models, [["x", "x"], ["x2", "x²"], ["_cons", "constant"]], [
       ["R²", m => f(m.R.r2, 4)], ["Adjusted R²", m => f(m.R.adj, 4)], ["Root MSE (σ̂)", m => f(m.R.rmse, 3)], ["regressors k", m => m.R.k - 1], ["df residual", m => m.R.df]]) +
-      (Qk ? `<caption style="caption-side:bottom;text-align:left;font-family:var(--f-body);font-size:12.5px;color:var(--muted);padding-top:6px">Coefficients on the ${p.k} noise regressors are not shown.</caption>` : "");
+      (Qk ? `<caption style="caption-side:bottom;text-align:left;font-family:var(--f-body);font-size:12.5px;color:var(--muted);padding-top:6px">Coefficients on the ${kUse} noise regressors are not shown.</caption>` : "");
     const trueME = p.b + 2 * p.q * x0, inRange = isFinite(tp) && tp >= xmin && tp <= xmax;
     $("q-calc").innerHTML = `<b>Marginal effect at x = ${f(x0, 1)}</b><br>
       ∂ŷ/∂x = β̂₁ + 2β̂₂·x = ${f(Q.b[1], 3)} + 2 × ${f(Q.b[2], 4)} × ${f(x0, 1)} = <span class="l">${f(ME, 3)}</span> <span class="m">(se ${f(seME, 3)}; true ${f(trueME, 3)})</span><br>
@@ -438,6 +459,10 @@ const form = {
       se(ŷ₀) = ${f(seY, 3)} &nbsp;·&nbsp; σ̂ = ${f(Q.rmse, 3)} &nbsp;·&nbsp; se(ê₀) = √(se(ŷ₀)² + σ̂²) = ${f(seE, 3)}<br>
       95% CI for the mean: <span class="l">[${f(y0 - tc * seY, 2)}, ${f(y0 + tc * seY, 2)}]</span><br>
       95% interval for one new observation: <span class="l">[${f(y0 - tc * seE, 2)}, ${f(y0 + tc * seE, 2)}]</span>`;
+    $("q-stata").textContent = [". gen x2 = x^2", ". regress y x x2", "", L.stataOut(Q, "y", ["x", "x2"]), "",
+      `. lincom x + 2*${f(p.x0, 1)}*x2              // ∂ŷ/∂x at x = ${f(p.x0, 1)}: ${f(ME, 4)} (se ${f(seME, 4)})`,
+      `. lincom _cons + ${f(p.x0, 1)}*x + ${f(p.x0 * p.x0, 2)}*x2   // ŷ at x = ${f(p.x0, 1)}: ${f(y0, 3)} (se ${f(seY, 3)})`,
+      `. display -_b[x]/(2*_b[x2])        // turning point = ${f(tp, 3)}`].join("\n");
     const tq = L.tcrit(Q.df, 0.05), rejQ = Math.abs(Q.t[2]) > tq;
     $("q-curv").innerHTML = `Quadratic model: β̂₂ = ${f(Q.b[2], 4)}, se(β̂₂) = ${f(Q.se[2], 4)}<br>
       t = ${f(Q.b[2], 4)} / ${f(Q.se[2], 4)} = <span class="l">${f(Q.t[2], 3)}</span> &nbsp;·&nbsp; df = ${Q.df} &nbsp;·&nbsp; critical |t| at 5%: <span class="r">${f(tq, 3)}</span> &nbsp;·&nbsp; p = ${fp(Q.p[2])} &nbsp;${verdict(rejQ)}<br>
@@ -477,9 +502,9 @@ const form = {
     P = L.chart($("q-cvR2"), [-0.5, 20.5], yr2, { xlab: "irrelevant regressors added", ylab: "R²", xticks: [0, 5, 10, 15, 20] });
     for (const [idx, col] of [[0, css("--short")], [1, css("--long")]]) {
       L.clip(P, ctx => { ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.beginPath(); path.forEach((r, j) => j ? ctx.lineTo(P.X(j), P.Y(r[idx])) : ctx.moveTo(P.X(j), P.Y(r[idx]))); ctx.stroke();
-        ctx.fillStyle = col; path.forEach((r, j) => { ctx.beginPath(); ctx.arc(P.X(j), P.Y(r[idx]), j === p.k ? 5 : 2.2, 0, 7); ctx.fill(); }); });
+        ctx.fillStyle = col; path.forEach((r, j) => { ctx.beginPath(); ctx.arc(P.X(j), P.Y(r[idx]), j === Math.min(p.k, path.length - 1) ? 5 : 2.2, 0, 7); ctx.fill(); }); });
     }
-    L.vline(P, p.k, css("--muted"), { width: 1, dash: [3, 3] });
+    L.vline(P, Math.min(p.k, path.length - 1), css("--muted"), { width: 1, dash: [3, 3] });
     // repeated samples: t on x²
     const cvq = $("q-cvMC");
     if (!this.mc) { L.message(cvq, "Press “Run 500 samples” to see how often the t-test on x² detects the curvature."); $("q-mcstats").innerHTML = ""; return; }
@@ -531,6 +556,11 @@ const het = {
     const ci = (m, j) => { const se = m.robust ? m.R.seR[j] : m.R.se[j]; return `[${f(m.R.b[j] - tc * se)}, ${f(m.R.b[j] + tc * se)}]`; };
     $("h-tab").innerHTML = L.regTable([{ title: "Usual SEs", cls: "c-short", R, names: ["x1", "x2"] }, { title: "Robust SEs (HC1)", cls: "c-long", R, names: ["x1", "x2"], robust: true }],
       [["x1", "x₁"], ["x2", "x₂"], ["_cons", "constant"]], [["95% CI for β₁", m => ci(m, 1)], ["95% CI for β₂", m => ci(m, 2)], ["se ratio robust / usual (x₁)", () => f(R.seR[1] / R.se[1], 2)], ["R²", () => f(R.r2, 4)], ["Root MSE (σ̂)", () => f(R.rmse, 3)]]);
+    $("h-stata").textContent = [". regress y x1 x2", "", L.stataOut(R, "y", ["x1", "x2"]), "",
+      ". predict uhat, residuals", ". scatter uhat x1, yline(0)", ". gen uhat2 = uhat^2", ". twoway (scatter uhat2 x1) (lfit uhat2 x1)", ". rvfplot, yline(0)", "",
+      `. estat hettest, rhs iid         // Breusch–Pagan: chi2(2) = ${f(T.LMbp, 2)}, Prob > chi2 = ${pS(T.pbp)}`,
+      ". estat imtest, white            // full White test (the page shows the special form)", "",
+      ". regress y x1 x2, vce(robust)", "", L.stataOut(R, "y", ["x1", "x2"], 0.95, true)].join("\n");
     const c2 = L.chiCrit(2, 0.05);
     $("h-tests").innerHTML = `<b>Breusch–Pagan</b>: regress û² on x₁, x₂ &nbsp;→&nbsp; R²<sub>û²</sub> = ${f(T.bp.r2, 4)}<br>
       LM = n · R²<sub>û²</sub> = ${p.n} × ${f(T.bp.r2, 4)} = <span class="l">${f(T.LMbp, 2)}</span> ~ χ²(2) under H₀ &nbsp;·&nbsp; critical ${f(c2, 2)} &nbsp;·&nbsp; p = ${fp(T.pbp)} ${verdict(T.pbp < 0.05)}<br>
@@ -615,7 +645,8 @@ const ls = {
     const mx = Math.max(Syy, mine) || 1, w = v => (100 * v / mx).toFixed(2) + "%";
     $("s-bars").innerHTML =
       `<div class="bar"><span>SST = Σ(yᵢ − ȳ)²</span><span class="track"><span class="fill" style="width:${w(Syy)};background:var(--muted)"></span></span><span class="num">${f(Syy, 0)}</span></div>
-       <div class="bar"><span>OLS: SSE + SSR</span><span class="track"><span class="fill" style="width:${w(sse)};background:var(--long)"></span><span class="fill" style="left:${w(sse)};width:${w(ssr)};background:var(--long);opacity:.35"></span></span><span class="num">${f(sse, 0)} + ${f(ssr, 0)}</span></div>
+       <div class="bar"><span>SSE = Σ(ŷᵢ − ȳ)² (explained)</span><span class="track"><span class="fill" style="width:${w(sse)};background:var(--long)"></span></span><span class="num">${f(sse, 0)}</span></div>
+       <div class="bar"><span>SSR = Σûᵢ² (OLS residuals)</span><span class="track"><span class="fill" style="width:${w(ssr)};background:var(--long);opacity:.45"></span></span><span class="num">${f(ssr, 0)}</span></div>
        <div class="bar"><span>Your line: SSR</span><span class="track"><span class="fill" style="width:${w(mine)};background:var(--short)"></span></span><span class="num">${f(mine, 0)}</span></div>`;
     const sx = Math.sqrt(Sxx / (n - 1)), sy = Math.sqrt(Syy / (n - 1)), cov = Sxy / (n - 1), ar = Math.abs(r);
     const strength = !isFinite(r) ? "" : ar === 0 ? "none" : ar <= 0.3 ? "weak" : ar <= 0.7 ? "moderate" : "strong";
@@ -630,7 +661,12 @@ const ls = {
       Cov(x, y) = ${f(cov, 3)} &nbsp;·&nbsp; r = Cov / (sₓ·s_y) = ${f(cov, 3)} / (${f(sx, 3)} × ${f(sy, 3)}) = <span class="l">${f(r, 4)}</span> <span class="m">(${strength})</span><br>
       r² = (${f(r, 4)})² = ${f(r * r, 4)} &nbsp;·&nbsp; r = β̂₁·sₓ/s_y = ${f(b1 * sx / sy, 4)}<br><br>
       <b>Your line</b>: SSR = ${f(mine, 1)} = ${f(ssrAt(p.ys), 1)} (slope) + ${n}·${f(p.yh, 2)}² (height) &nbsp;·&nbsp; ${mine <= ssr + 1e-6 ? `<span class="l">matches OLS</span>` : `<span class="s">${f(100 * (mine / ssr - 1), 1)}% worse than OLS</span>`}`;
-    $("s-stata").textContent = R ? L.stataOut(R, "y", ["x"]) : "σ = 0 and β₁ = 0: y is constant, there is nothing to explain.";
+    $("s-stata").textContent = R ? [". regress y x", "", L.stataOut(R, "y", ["x"]), "",
+      ". predict yhat, xb               // fitted values ŷ",
+      ". gen residuals = y - yhat       // residuals û",
+      `. summarize residuals            // mean is 0: the residuals sum to zero`,
+      `. correlate y x                  // r = ${f(r, 4)}, and r² = ${f(r * r, 4)} = R² above`].join("\n")
+      : "σ = 0 and β₁ = 0: y is constant, there is nothing to explain.";
     this.draw();
   },
   draw() {
@@ -697,6 +733,10 @@ const logs = {
     const trueMean = v => { const rhs = F.b0 + p.b1 * (F.logx ? Math.log(v) : v); return F.logy ? Math.exp(rhs + sd * sd / 2) : rhs; };
     this.last = { p, F, x, y, lx, ly, fits, pos, trueMean };
     this.compare(p, y, fits, pos);
+    { const G = FORMS[p.fit], R = fits[p.fit], yv = G.logy ? "lny" : "y", xv = G.logx ? "lnx" : "x";
+      $("g-stata").textContent = R ? [...(G.logy ? [". gen lny = ln(y)"] : []), ...(G.logx ? [". gen lnx = ln(x)"] : []), `. regress ${yv} ${xv}               // ${G.name}`, "",
+        L.stataOut(R, yv, [xv]), "", "// For levels R² and adjustment factors, see the commands under “Comparing fit across y and ln y”."].join("\n")
+        : "// Some y ≤ 0: ln(y) is missing for those observations."; }
     // table
     const models = ["ll", "gl", "lg", "gg"].map(k => ({ title: FORMS[k].name, cls: k === p.fit ? "c-long" : "", R: fits[k], names: ["x"], note: "needs y > 0", dec: 4 }));
     $("g-tab").innerHTML = L.regTable(models, [["x", "β̂₁ (on x or ln x)"], ["_cons", "constant"]], [
@@ -808,7 +848,9 @@ const ci = {
       <span class="m">${lo <= p.b1 && p.b1 <= hi ? "This interval contains the true β₁." : "This interval misses the true β₁: it happens to " + (100 - lv) + "% of intervals."}</span><br><br>
       <b>t-test of H₀: β₁ = 0</b>, α = ${f(a, 2)}<br>
       t = β̂₁ / se(β̂₁) = ${f(R.b[1], 3)} / ${f(R.se[1], 4)} = <span class="l">${f(R.t[1], 3)}</span> &nbsp;·&nbsp; critical |t| = ${f(tc, 3)} &nbsp;·&nbsp; p = ${fp(R.p[1])} &nbsp;${verdict(rej)}`;
-    $("c-stata").textContent = L.stataOut(R, "y", ["x"], p.lev);
+    $("c-stata").textContent = [`. regress y x${lv === 95 ? "" : `, level(${lv})`}`, "", L.stataOut(R, "y", ["x"], p.lev), "",
+      `.                                // se(β̂₁) = Root MSE / √SSTₓ = ${f(R.rmse, 4)} / √${f(SSTx, 2)} = ${f(R.se[1], 4)}`,
+      `.                                // t = β̂₁ / se = ${f(R.t[1], 2)}, p = ${fp(R.p[1])}`].join("\n");
     this.draw();
   },
   draw() {
@@ -881,6 +923,11 @@ const anova = {
       95% interval for the new observation: ${f(yh, 2)} ± ${f(tc, 3)} × ${f(seP, 3)} = <span class="l">[${f(yh - tc * seP, 2)}, ${f(yh + tc * seP, 2)}]</span><br>
       <span class="m">95% CI for the mean E[y | x*] drops the σ̂² term: [${f(yh - tc * seM, 2)}, ${f(yh + tc * seM, 2)}]</span>`;
     this.last = { p, x, y, R, xb, SSTx, F, Fc, df, t1, t2, t3, tc, yh, seP };
+    $("a-stata").textContent = [". regress y x", "", L.stataOut(R, "y", ["x"]), "",
+      `.                                // F = MS Model / MS Residual = ${f(MSE, 2)} / ${f(MSR, 2)} = ${f(F, 2)} = t² = ${f(R.t[1] ** 2, 2)}`,
+      `. margins, at(x = ${f(p.xs, 2)})            // ŷ* = ${f(yh, 3)}, 95% CI for the mean [${f(yh - tc * seM, 2)}, ${f(yh + tc * seM, 2)}]`,
+      ". predict sef, stdf               // se for a new observation at each x",
+      `.                                // at x* = ${f(p.xs, 2)}: se(pred) = ${f(seP, 3)}, interval [${f(yh - tc * seP, 2)}, ${f(yh + tc * seP, 2)}]`].join("\n");
     this.draw();
   },
   draw() {
@@ -942,6 +989,12 @@ const ro = new ResizeObserver(soon); document.querySelectorAll(".pane main").for
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", soon);
 new MutationObserver(soon).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(soon);
+
+// discrete sliders (sample size): show the mapped value next to the label
+document.querySelectorAll("input[data-vals]").forEach(el => {
+  const out = $(el.id + "o"), upd = () => { if (out) out.textContent = num(el.id); };
+  el.addEventListener("input", upd); upd();
+});
 
 // true-model line: split "a · b · c" into separate items that wrap as whole units instead of scrolling
 const fmtDgp = el => {

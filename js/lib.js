@@ -249,10 +249,25 @@ const Lib = (() => {
     return v.toExponential(2);
   }
   const pad = (s, w) => String(s).padStart(w);
-  function stataOut(R, yname, xnames, level = 0.95) {
+  function stataOut(R, yname, xnames, level = 0.95, robust = false) {
     const n = R.n, k = R.k - 1, tc = tcrit(R.df, 1 - level), lv = Math.round(level * 100);
     const L1 = [];
-    const row = (src, ss, df, ms, lab, val) => L1.push(`${pad(src, 12)} | ${pad(g9(ss), 10)} ${pad(df, 9)} ${pad(g9(ms), 10)}   ${lab.padEnd(15)} = ${pad(val, 9)}`);
+    const SE = robust ? R.seR : R.se, T = robust ? R.tR : R.t, PV = robust ? R.pR : R.p;
+    if (robust) {
+      L1.push(`Linear regression${" ".repeat(34)}Number of obs     = ${pad(n, 9)}`);
+      L1.push(`${" ".repeat(51)}R-squared         = ${pad(R.r2.toFixed(4), 9)}`);
+      L1.push(`${" ".repeat(51)}Root MSE          = ${pad(g9(+R.rmse.toPrecision(5)), 9)}`);
+      L1.push("", "-".repeat(78));
+      L1.push(`${" ".repeat(13)}|               Robust`);
+      L1.push(`${pad(yname.slice(0, 12), 12)} | Coefficient  std. err.      t    P>|t|     [${lv}% conf. interval]`);
+      L1.push("-------------+" + "-".repeat(64));
+      const names = [...xnames, "_cons"], idx = [...xnames.map((_, i) => i + 1), 0];
+      names.forEach((nm, r) => { const j = idx[r];
+        L1.push(`${pad(nm.slice(0, 12), 12)} | ${pad(g9(R.b[j]), 10)} ${pad(g9(SE[j]), 10)} ${pad(T[j].toFixed(2), 8)} ${pad(PV[j].toFixed(3), 7)}    ${pad(g9(R.b[j] - tc * SE[j]), 9)}   ${pad(g9(R.b[j] + tc * SE[j]), 9)}`); });
+      L1.push("-".repeat(78));
+      return L1.join("\n");
+    }
+    const row = (src, ss, df, ms, lab, val) => L1.push(`${pad(src, 12)} | ${pad(g9(ss), 10)} ${pad(df, 9)} ${pad(g9(ms), 10)}     ${lab.padEnd(15)} = ${pad(val, 9)}`);
     L1.push(`${pad("Source", 12)} |       SS           df       MS      Number of obs   = ${pad(n, 9)}`);
     L1.push(`-------------+----------------------------------   ${("F(" + k + ", " + R.df + ")").padEnd(15)} = ${pad(R.F.toFixed(2), 9)}`);
     row("Model", R.sse, k, R.sse / k, "Prob > F", R.pF.toFixed(4));

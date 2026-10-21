@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="css/style.css?v=6db21b78">
+<link rel="stylesheet" href="css/style.css?v=591adfec">
 </head>
 <body>
 <div class="wrap">
@@ -51,7 +51,7 @@
         <div class="rail-label">True model</div>
         <div class="ctl"><label for="s-b1">True slope β₁ <output id="s-b1o"></output></label><input type="range" id="s-b1" min="-4" max="6" step="0.1" value="2"></div>
         <div class="ctl"><label for="s-sig">σ (SD of the error u) <output id="s-sigo"></output></label><input type="range" id="s-sig" min="0" max="20" step="0.5" value="5"></div>
-        <div class="ctl row"><label for="s-n">Sample size n</label><select id="s-n"><option>5</option><option>10</option><option selected>16</option><option>30</option><option>100</option><option>500</option></select></div>
+        <div class="ctl"><label for="s-n">Sample size n <output id="s-no">100</output></label><input type="range" id="s-n" min="0" max="4" step="1" value="2" data-vals="20,50,100,500,1000"></div>
         <div class="btns"><button type="button" class="act" id="s-new">Draw new sample</button></div>
         <div class="rail-label">Try this</div>
         <ol class="try">
@@ -59,12 +59,9 @@
           <li>Hide the OLS line and tilt yours to make SSR as small as you can. Then show OLS. You cannot beat it.</li>
           <li>Move the height away from ȳ. SSR grows by exactly n·d²: the best line always passes through (x̄, ȳ).</li>
           <li>Set σ = 0. Every point is on the line, r = ±1 and r² = 1.</li>
-          <li>Set the true slope to 0. r and r² collapse towards 0.</li>
+          <li>Now slide σ slowly from 0 up to 20 and watch the bars. The residual part SSR grows with the square of the noise and soon dominates SST, so r² = SSE/SST collapses. The explained part SSE changes far less: it depends on the slope, not on the noise. β̂₁ becomes less precise (press “Draw new sample” a few times at σ = 20 and watch it jump around 2), but it is not biased. A low R² means a lot of unexplained variation, not a wrong slope.</li>
+          <li>Now go the other way: keep σ fixed and move the true slope from 0 up to 6. SSE grows with the square of the slope, because ŷᵢ − ȳ = β̂₁(xᵢ − x̄) gives SSE = β̂₁²·SSTₓ. SSR does not change at all, since the noise is the same. So r² rises: it measures the variation driven by x relative to the noise. The intercept plays no role, because every sum of squares is measured around ȳ. At slope 0, r and r² collapse towards 0.</li>
         </ol>
-        <div class="stata">reg y x
-predict yhat, xb
-gen residuals = y - yhat
-correlate y x</div>
       </aside>
       <main>
         <div class="plots">
@@ -90,11 +87,12 @@ correlate y x</div>
         </div>
         <section class="panel" aria-labelledby="s-h3">
           <h2 id="s-h3">Decomposition of the sum of squares</h2>
-          <div class="bars" id="s-bars"></div>
+          <div class="bars wide-labels" id="s-bars"></div>
           <div class="calc" id="s-calc"></div>
         </section>
         <section class="panel" aria-labelledby="s-h4">
           <h2 id="s-h4">The same regression in Stata</h2>
+          <p>Commands as you would type them, with the output Stata prints for this sample.</p>
           <pre class="stata out" id="s-stata"></pre>
         </section>
       </main>
@@ -110,7 +108,7 @@ correlate y x</div>
         <div class="ctl row"><label for="g-form">Data come from</label><select id="g-form"><option value="ll">level-level</option><option value="gl">log-level</option><option value="lg">level-log</option><option value="gg" selected>log-log</option></select></div>
         <div class="ctl"><label for="g-b1">True β₁ <output id="g-b1o"></output></label><input type="range" id="g-b1" min="-1" max="2" step="0.05" value="0.2"></div>
         <div class="ctl"><label for="g-noise">Noise <output id="g-noiseo"></output></label><input type="range" id="g-noise" min="0.2" max="8" step="0.1" value="1"></div>
-        <div class="ctl row"><label for="g-n">Sample size n</label><select id="g-n"><option>30</option><option selected>100</option><option>300</option><option>1000</option></select></div>
+        <div class="ctl"><label for="g-n">Sample size n <output id="g-no">100</output></label><input type="range" id="g-n" min="0" max="4" step="1" value="2" data-vals="20,50,100,500,1000"></div>
         <div class="rail-label">Model you estimate</div>
         <div class="ctl row"><label for="g-fit">Fit</label><select id="g-fit"><option value="ll">level-level</option><option value="gl">log-level</option><option value="lg">level-log</option><option value="gg" selected>log-log</option></select></div>
         <div class="btns"><button type="button" class="act" id="g-new">Draw new sample</button></div>
@@ -122,11 +120,6 @@ correlate y x</div>
           <li>Compare R² across the four columns. Only models with the same dependent variable are comparable (see the note under the table).</li>
           <li>Raise the noise to about 6 and look at “Converting log predictions back to levels”. Unadjusted predictions fall well below the 45° line; the adjustment factors pull them back.</li>
         </ol>
-        <div class="stata">gen lny = log(y)
-gen lnx = log(x)
-reg lny lnx     // log-log
-reg lny x       // log-level
-reg y lnx       // level-log</div>
       </aside>
       <main>
         <div class="plots">
@@ -187,6 +180,11 @@ quietly summarize eu
 gen yhat_s = r(mean)*mhat     // smearing-adjusted predictions
 regress y mhat, noconstant    // coefficient = α̌</pre>
         </section>
+        <section class="panel" aria-labelledby="g-hst">
+          <h2 id="g-hst">The same analysis in Stata</h2>
+          <p>Commands as you would type them, with output and key numbers for this sample.</p>
+          <pre class="stata out" id="g-stata"></pre>
+        </section>
       </main>
     </div>
   </section>
@@ -199,7 +197,7 @@ regress y mhat, noconstant    // coefficient = α̌</pre>
         <div class="rail-label">True model</div>
         <div class="ctl"><label for="c-b1">True slope β₁ <output id="c-b1o"></output></label><input type="range" id="c-b1" min="-6" max="6" step="0.1" value="2"></div>
         <div class="ctl"><label for="c-sig">σ (SD of the error u) <output id="c-sigo"></output></label><input type="range" id="c-sig" min="1" max="30" step="0.5" value="10"></div>
-        <div class="ctl row"><label for="c-n">Sample size n</label><select id="c-n"><option>5</option><option>10</option><option selected>16</option><option>30</option><option>100</option><option>500</option></select></div>
+        <div class="ctl"><label for="c-n">Sample size n <output id="c-no">100</output></label><input type="range" id="c-n" min="0" max="4" step="1" value="2" data-vals="20,50,100,500,1000"></div>
         <div class="rail-label">Inference</div>
         <div class="ctl row"><label for="c-lev">Confidence level</label><select id="c-lev"><option value="0.8">80%</option><option value="0.9">90%</option><option value="0.95" selected>95%</option><option value="0.99">99%</option></select></div>
         <span class="hint">The t-test of H₀: β₁ = 0 uses α = 1 − confidence level.</span>
@@ -212,8 +210,6 @@ regress y mhat, noconstant    // coefficient = α̌</pre>
           <li>Raise σ: the lines fan out and the CI widens. Raise n: SSTₓ grows and everything tightens.</li>
           <li>Set β₁ = 0. The test now rejects in about α of the samples: the type I error rate.</li>
         </ol>
-        <div class="stata">reg y x
-reg y x, level(80)</div>
       </aside>
       <main>
         <div class="plots">
@@ -239,13 +235,17 @@ reg y x, level(80)</div>
         <section class="panel" aria-labelledby="c-h3">
           <h2 id="c-h3">Standard error, confidence interval and t-test</h2>
           <div class="calc" id="c-calc"></div>
-          <pre class="stata out" id="c-stata"></pre>
         </section>
         <section class="panel" aria-labelledby="c-h4">
           <h2 id="c-h4">Repeated samples: 1,000 draws with the same x's</h2>
           <div class="btns"><button type="button" class="act ghost" id="c-mc">Run 1,000 samples</button></div>
           <div class="stats" id="c-mcstats"></div>
           <p>The x values are held fixed and only the errors are redrawn, which is the setting in which the formula Var(β̂₁) = σ² / SSTₓ holds.</p>
+        </section>
+        <section class="panel" aria-labelledby="c-hst">
+          <h2 id="c-hst">The same analysis in Stata</h2>
+          <p>Commands as you would type them, with output and key numbers for this sample.</p>
+          <pre class="stata out" id="c-stata"></pre>
         </section>
       </main>
     </div>
@@ -259,7 +259,7 @@ reg y x, level(80)</div>
         <div class="rail-label">True model</div>
         <div class="ctl"><label for="a-b1">True slope β₁ <output id="a-b1o"></output></label><input type="range" id="a-b1" min="-6" max="6" step="0.1" value="3"></div>
         <div class="ctl"><label for="a-sig">σ (SD of the error u) <output id="a-sigo"></output></label><input type="range" id="a-sig" min="1" max="30" step="0.5" value="10"></div>
-        <div class="ctl row"><label for="a-n">Sample size n</label><select id="a-n"><option>5</option><option>10</option><option selected>16</option><option>30</option><option>100</option><option>500</option></select></div>
+        <div class="ctl"><label for="a-n">Sample size n <output id="a-no">100</output></label><input type="range" id="a-n" min="0" max="4" step="1" value="2" data-vals="20,50,100,500,1000"></div>
         <div class="ctl row"><label for="a-a">Significance level α</label><select id="a-a"><option value="0.1">0.10</option><option value="0.05" selected>0.05</option><option value="0.01">0.01</option></select></div>
         <div class="rail-label">Prediction</div>
         <div class="ctl"><label for="a-xs">New observation at x* = <output id="a-xso"></output></label><input type="range" id="a-xs" min="2" max="18" step="0.25" value="14"></div>
@@ -271,9 +271,6 @@ reg y x, level(80)</div>
           <li>Move x* away from x̄. Only the third variance term grows: the bands bow outwards.</li>
           <li>Raise n to 500. The 1/n and slope terms vanish; the σ̂² term never does.</li>
         </ol>
-        <div class="stata">reg y x
-predict yhat, xb
-predict sef, stdf   // se for a new obs.</div>
       </aside>
       <main>
         <div class="plots">
@@ -311,6 +308,11 @@ predict sef, stdf   // se for a new obs.</div>
             <span><i class="blk" style="background:var(--long)"></i>σ̂²(x* − x̄)²/SSTₓ: not knowing β₁</span>
           </div>
         </section>
+        <section class="panel" aria-labelledby="a-hst">
+          <h2 id="a-hst">The same analysis in Stata</h2>
+          <p>Commands as you would type them, with output and key numbers for this sample.</p>
+          <pre class="stata out" id="a-stata"></pre>
+        </section>
       </main>
     </div>
   </section>
@@ -325,7 +327,7 @@ predict sef, stdf   // se for a new obs.</div>
         <div class="ctl"><label for="o-b2">β₂ (effect of x₂) <output id="o-b2o"></output></label><input type="range" id="o-b2" min="-3" max="3" step="0.1" value="2"></div>
         <div class="ctl"><label for="o-rho">corr(x₁, x₂) <output id="o-rhoo"></output></label><input type="range" id="o-rho" min="-0.95" max="0.95" step="0.05" value="0.8"></div>
         <div class="ctl"><label for="o-sig">σ (SD of the error u) <output id="o-sigo"></output></label><input type="range" id="o-sig" min="1" max="20" step="0.5" value="5"></div>
-        <div class="ctl row"><label for="o-n">Sample size n</label><select id="o-n"><option>30</option><option>100</option><option selected>200</option><option>500</option><option>1000</option></select></div>
+        <div class="ctl"><label for="o-n">Sample size n <output id="o-no">100</output></label><input type="range" id="o-n" min="0" max="4" step="1" value="2" data-vals="20,50,100,500,1000"></div>
         <div class="rail-label">Model</div>
         <label class="check" for="o-x3"><input type="checkbox" id="o-x3"><span>Add x₃, a pure-noise regressor (true β₃ = 0)</span></label>
         <div class="btns"><button type="button" class="act" id="o-new">Draw new sample</button></div>
@@ -338,10 +340,6 @@ predict sef, stdf   // se for a new obs.</div>
           <li>Set β₂ to 0. Now x₂ is irrelevant and omitting it causes no bias, whatever the correlation.</li>
           <li>Tick x₃. R² always rises; adjusted R² rises only if |t| &gt; 1.</li>
         </ol>
-        <div class="stata">regress y x1        // short
-regress y x1 x2     // long
-regress x2 x1       // δ₁ for OVB
-avplot x1           // partialled-out plot</div>
       </aside>
       <main>
         <div class="plots">
@@ -383,6 +381,11 @@ avplot x1           // partialled-out plot</div>
           </div>
           <div class="stats" id="o-mcstats"></div>
         </section>
+        <section class="panel" aria-labelledby="o-hst">
+          <h2 id="o-hst">The same analysis in Stata</h2>
+          <p>Commands as you would type them, with output and key numbers for this sample.</p>
+          <pre class="stata out" id="o-stata"></pre>
+        </section>
       </main>
     </div>
   </section>
@@ -395,7 +398,7 @@ avplot x1           // partialled-out plot</div>
         <div class="rail-label">Data</div>
         <div class="ctl"><label for="v-rho">corr(x₁, x₂) <output id="v-rhoo"></output></label><input type="range" id="v-rho" min="0" max="0.995" step="0.005" value="0.9"></div>
         <div class="ctl"><label for="v-sig">σ (SD of the error u) <output id="v-sigo"></output></label><input type="range" id="v-sig" min="1" max="30" step="0.5" value="10"></div>
-        <div class="ctl row"><label for="v-n">Sample size n</label><select id="v-n"><option>30</option><option>50</option><option selected>100</option><option>200</option><option>500</option><option>1000</option></select></div>
+        <div class="ctl"><label for="v-n">Sample size n <output id="v-no">100</output></label><input type="range" id="v-n" min="0" max="4" step="1" value="2" data-vals="20,50,100,500,1000"></div>
         <label class="check" for="v-perf"><input type="checkbox" id="v-perf"><span>Perfect collinearity: x₂ = 5 + 1.5·x₁ exactly</span></label>
         <div class="btns"><button type="button" class="act" id="v-new">Draw new sample</button></div>
         <div class="rail-label">Try this</div>
@@ -407,10 +410,6 @@ avplot x1           // partialled-out plot</div>
           <li>Run the repeated samples. The cloud of (β̂₁, β̂₂) stretches into a thin diagonal: the data pin down a combination, not each slope.</li>
           <li>Tick perfect collinearity: OLS cannot be computed, and Stata drops a variable.</li>
         </ol>
-        <div class="stata">regress y x1 x2
-estat vif
-regress x1 x2      // r₁² for the VIF
-test x1 x2         // joint F</div>
       </aside>
       <main>
         <div class="plots">
@@ -450,6 +449,11 @@ test x1 x2         // joint F</div>
             <p><b>The cloud is a diagonal.</b> When x₁ and x₂ move together, a sample that overstates β₁ tends to understate β₂, and the reverse. The data pin down their combined effect well but not how to split it between the two. That is why the joint F-test can reject while neither t-test does, as the last count shows.</p>
           </div>
         </section>
+        <section class="panel" aria-labelledby="v-hst">
+          <h2 id="v-hst">The same analysis in Stata</h2>
+          <p>Commands as you would type them, with output and key numbers for this sample.</p>
+          <pre class="stata out" id="v-stata"></pre>
+        </section>
       </main>
     </div>
   </section>
@@ -465,7 +469,7 @@ test x1 x2         // joint F</div>
         <div class="ctl row"><label for="i-a">Significance level α</label><select id="i-a"><option value="0.1">0.10 (90% CI)</option><option value="0.05" selected>0.05 (95% CI)</option><option value="0.01">0.01 (99% CI)</option></select></div>
         <div class="rail-label">Data</div>
         <div class="ctl"><label for="i-sig">σ (SD of the error u) <output id="i-sigo"></output></label><input type="range" id="i-sig" min="1" max="30" step="0.5" value="10"></div>
-        <div class="ctl row"><label for="i-n">Sample size n</label><select id="i-n"><option>20</option><option>50</option><option selected>100</option><option>200</option><option>500</option><option>1000</option></select></div>
+        <div class="ctl"><label for="i-n">Sample size n <output id="i-no">100</output></label><input type="range" id="i-n" min="0" max="4" step="1" value="2" data-vals="20,50,100,500,1000"></div>
         <div class="btns"><button type="button" class="act" id="i-new">Draw new sample</button></div>
         <div class="rail-label">Try this</div>
         <ol class="try">
@@ -475,10 +479,6 @@ test x1 x2         // joint F</div>
           <li>c is inside the CI exactly when the t-test fails to reject. Check it.</li>
           <li>Raise n or lower σ. The CI shrinks and the test gains power.</li>
         </ol>
-        <div class="stata">regress y x1 x2 x3
-test x1 = -0.5     // F = t²
-lincom x1 + 0.5    // reports t
-regress y x1 x2 x3, level(99)</div>
       </aside>
       <main>
         <section class="panel" aria-labelledby="i-h1">
@@ -523,6 +523,11 @@ regress y x1 x2 x3, level(99)</div>
           <div class="stats" id="i-mcstats"></div>
           <p>Each line is the confidence interval from one sample of the same true model. Teal intervals contain the true β₁, red ones miss it. Intervals that do not cross the dashed line at c are the samples where the test rejects H₀: β₁ = c. Press the button again: the number of red lines changes every time, around 5 at α = 0.05 but rarely exactly 5. That wobble is sampling variation too.</p>
         </section>
+        <section class="panel" aria-labelledby="i-hst">
+          <h2 id="i-hst">The same analysis in Stata</h2>
+          <p>Commands as you would type them, with output and key numbers for this sample.</p>
+          <pre class="stata out" id="i-stata"></pre>
+        </section>
       </main>
     </div>
   </section>
@@ -538,7 +543,7 @@ regress y x1 x2 x3, level(99)</div>
         <div class="ctl"><label for="j-rho">corr(x₂, x₃) <output id="j-rhoo"></output></label><input type="range" id="j-rho" min="-0.95" max="0.98" step="0.01" value="0.95"></div>
         <div class="rail-label">Data</div>
         <div class="ctl"><label for="j-sig">σ (SD of the error u) <output id="j-sigo"></output></label><input type="range" id="j-sig" min="1" max="30" step="0.5" value="10"></div>
-        <div class="ctl row"><label for="j-n">Sample size n</label><select id="j-n"><option>20</option><option>50</option><option selected>100</option><option>200</option><option>500</option></select></div>
+        <div class="ctl"><label for="j-n">Sample size n <output id="j-no">100</output></label><input type="range" id="j-n" min="0" max="4" step="1" value="2" data-vals="20,50,100,500,1000"></div>
         <div class="ctl row"><label for="j-a">Significance level α</label><select id="j-a"><option value="0.1">0.10</option><option value="0.05" selected>0.05</option><option value="0.01">0.01</option></select></div>
         <div class="btns"><button type="button" class="act" id="j-new">Draw new sample</button></div>
         <div class="rail-label">Try this</div>
@@ -549,9 +554,6 @@ regress y x1 x2 x3, level(99)</div>
           <li>Set β₃ = 0 only. x₃ is irrelevant, but F still rejects: H₀ says both are zero, and β₂ is not.</li>
           <li>With high correlation, set β₂ = 1 and β₃ = −1. The two effects cancel along the direction the data vary in, and even F struggles.</li>
         </ol>
-        <div class="stata">regress y x1 x2 x3   // unrestricted
-test x2 x3            // joint F
-regress y x1          // restricted</div>
       </aside>
       <main>
         <section class="panel" aria-labelledby="j-h1">
@@ -597,6 +599,11 @@ regress y x1          // restricted</div>
           <div class="stats" id="j-mcstats"></div>
           <p>Each dot is one sample, placed at its two t-statistics. Dots inside the box are samples where neither t-test rejects. Red dots inside the box are samples where the variables look useless one at a time but the joint test shows they matter.</p>
         </section>
+        <section class="panel" aria-labelledby="j-hst">
+          <h2 id="j-hst">The same analysis in Stata</h2>
+          <p>Commands as you would type them, with output and key numbers for this sample.</p>
+          <pre class="stata out" id="j-stata"></pre>
+        </section>
       </main>
     </div>
   </section>
@@ -610,7 +617,7 @@ regress y x1          // restricted</div>
         <div class="ctl"><label for="q-b">β₁ (linear term) <output id="q-bo"></output></label><input type="range" id="q-b" min="-5" max="5" step="0.1" value="-2"></div>
         <div class="ctl"><label for="q-q">β₂ (curvature, on x²) <output id="q-qo"></output></label><input type="range" id="q-q" min="-0.3" max="0.3" step="0.01" value="0.15"></div>
         <div class="ctl"><label for="q-sig">σ (SD of the error u) <output id="q-sigo"></output></label><input type="range" id="q-sig" min="1" max="15" step="0.5" value="4"></div>
-        <div class="ctl row"><label for="q-n">Sample size n</label><select id="q-n"><option>30</option><option selected>100</option><option>200</option><option>500</option><option>1000</option></select></div>
+        <div class="ctl"><label for="q-n">Sample size n <output id="q-no">100</output></label><input type="range" id="q-n" min="0" max="4" step="1" value="2" data-vals="20,50,100,500,1000"></div>
         <div class="rail-label">Questions to the fitted model</div>
         <div class="ctl"><label for="q-x0">Evaluate at x = <output id="q-x0o"></output></label><input type="range" id="q-x0" min="2" max="18" step="0.5" value="12"></div>
         <div class="ctl"><label for="q-k">Irrelevant regressors added <output id="q-ko"></output></label><input type="range" id="q-k" min="0" max="20" step="1" value="0"></div>
@@ -623,11 +630,6 @@ regress y x1          // restricted</div>
           <li>Add irrelevant regressors. R² creeps up every time; adjusted R² does not.</li>
           <li>Raise n. The CI for the mean prediction shrinks towards zero; the interval for one new observation never gets narrower than about ±2σ.</li>
         </ol>
-        <div class="stata">gen x2 = x^2
-regress y x x2
-lincom x + 2*12*x2   // ∂y/∂x at x = 12
-predict yhat, xb
-predict sef, stdf    // se for a new obs.</div>
       </aside>
       <main>
         <div class="plots">
@@ -690,6 +692,11 @@ predict sef, stdf    // se for a new obs.</div>
             <p><b>What the chart shows.</b> For a pure-noise regressor, |t| &lt; 1 about two times in three, so adjusted R² drifts down. The occasional uptick is a junk variable that got |t| &gt; 1 by luck. R² rewards every added variable; adjusted R² charges one degree of freedom for each.</p>
           </div>
         </section>
+        <section class="panel" aria-labelledby="q-hst">
+          <h2 id="q-hst">The same analysis in Stata</h2>
+          <p>Commands as you would type them, with output and key numbers for this sample.</p>
+          <pre class="stata out" id="q-stata"></pre>
+        </section>
       </main>
     </div>
   </section>
@@ -706,7 +713,7 @@ predict sef, stdf    // se for a new obs.</div>
         <div class="ctl"><label for="h-g">Heteroskedasticity γ <output id="h-go"></output></label><input type="range" id="h-g" min="0" max="1.5" step="0.05" value="1"></div>
         <span class="hint">γ = 0 is homoskedastic: Var(u | x) is constant. Larger γ means stronger heteroskedasticity in the chosen pattern.</span>
         <div class="ctl"><label for="h-sig">σ (average SD of u) <output id="h-sigo"></output></label><input type="range" id="h-sig" min="1" max="20" step="0.5" value="5"></div>
-        <div class="ctl row"><label for="h-n">Sample size n</label><select id="h-n"><option>30</option><option>100</option><option selected>200</option><option>500</option><option>1000</option></select></div>
+        <div class="ctl"><label for="h-n">Sample size n <output id="h-no">100</output></label><input type="range" id="h-n" min="0" max="4" step="1" value="2" data-vals="20,50,100,500,1000"></div>
         <div class="btns"><button type="button" class="act" id="h-new">Draw new sample</button></div>
         <div class="rail-label">Try this</div>
         <ol class="try">
@@ -714,24 +721,8 @@ predict sef, stdf    // se for a new obs.</div>
           <li>Run the repeated samples at γ = 1. The usual SE understates the true spread, so its 95% CIs cover less than 95%. Robust CIs are close to 95%.</li>
           <li>Set γ = 0. Usual and robust SEs agree, and the Breusch–Pagan test rejects only about 5% of the time.</li>
           <li>Switch the pattern to “spread largest in the middle of x₁” and run the samples. Now the usual SE is too large: coverage is above 95%, and inference is conservative rather than overconfident.</li>
-          <li>Drop n to 30. Robust SEs are a large-sample fix; in small samples they are imperfect too.</li>
+          <li>Drop n to 20. Robust SEs are a large-sample fix; in small samples they are imperfect too.</li>
         </ol>
-        <div class="stata">regress y x1 x2
-
-* plots
-predict uhat, residuals
-scatter uhat x1, yline(0)
-gen uhat2 = uhat^2
-twoway (scatter uhat2 x1) ///
-       (lfit uhat2 x1)
-rvfplot, yline(0)   // û vs ŷ
-
-* tests
-estat hettest, rhs iid   // Breusch–Pagan, n·R²
-estat imtest, white      // White test
-
-* robust standard errors
-regress y x1 x2, vce(robust)</div>
       </aside>
       <main>
         <div class="plots">
@@ -781,6 +772,11 @@ regress y x1 x2, vce(robust)</div>
             <p><b>Caveat 2: this is about size, not power.</b> Size is how often you reject a true null (false positives). Power is how often you detect a real effect. Heteroskedasticity distorts size, which is what the coverage bars measure here. Whether you can detect a true effect is a separate question.</p>
           </div>
         </section>
+        <section class="panel" aria-labelledby="h-hst">
+          <h2 id="h-hst">The same analysis in Stata</h2>
+          <p>Commands as you would type them, with output and key numbers for this sample.</p>
+          <pre class="stata out" id="h-stata"></pre>
+        </section>
       </main>
     </div>
   </section>
@@ -791,7 +787,7 @@ regress y x1 x2, vce(robust)</div>
   <footer>All data are simulated: x₁ ~ N(10, 2²) and x₂ ~ N(20, 3²) unless a tab says otherwise, u ~ normal with mean 0. Coefficients, standard errors, tests and p-values are computed by OLS in your browser and match Stata's <code>regress</code> output.</footer>
 </div>
 
-<script src="js/lib.js?v=3c0b7d11"></script>
-<script src="js/app.js?v=05016064"></script>
+<script src="js/lib.js?v=32f0011c"></script>
+<script src="js/app.js?v=477b241b"></script>
 </body>
 </html>
