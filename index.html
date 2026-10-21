@@ -714,8 +714,20 @@ predict sef, stdf    // se for a new obs.</div>
           <li>Drop n to 30. Robust SEs are a large-sample fix; in small samples they are imperfect too.</li>
         </ol>
         <div class="stata">regress y x1 x2
+
+* plots
+predict uhat, residuals
+scatter uhat x1, yline(0)
+gen uhat2 = uhat^2
+twoway (scatter uhat2 x1) ///
+       (lfit uhat2 x1)
+rvfplot, yline(0)   // û vs ŷ
+
+* tests
 estat hettest, rhs iid   // Breusch–Pagan, n·R²
 estat imtest, white      // White test
+
+* robust standard errors
 regress y x1 x2, vce(robust)</div>
       </aside>
       <main>
@@ -731,6 +743,11 @@ regress y x1 x2, vce(robust)</div>
             <div class="cv"><canvas id="h-cvSq" role="img" aria-label="Squared residuals against x1 with a fitted line"></canvas></div>
             <div class="legend"><span><i class="sw" style="background:var(--short)"></i>OLS line of û² on x₁</span></div>
             <p>Breusch–Pagan regresses û² on the regressors and asks whether they explain any of it. A slope here is what it detects.</p>
+          </section>
+          <section class="panel" aria-labelledby="h-h2b">
+            <h2 id="h-h2b">Residuals against fitted values</h2>
+            <div class="cv"><canvas id="h-cvFit" role="img" aria-label="OLS residuals against fitted values"></canvas></div>
+            <p id="h-fitnote">The standard first check (Stata's <code>rvfplot</code>): one plot that works with any number of regressors. A fan means the spread of u changes with ŷ.</p>
           </section>
         </div>
         <section class="panel" aria-labelledby="h-h3">

@@ -546,6 +546,10 @@ const het = {
     P = L.chart($("h-cvSq"), L.range([d.x1], 0.04), [0, Math.max(...e2) * 1.05], { xlab: "x₁", ylab: "û²" });
     L.dots(P, d.x1, e2, css("--dot"), { alpha: 0.55 });
     L.curve(P, v => line.b[0] + line.b[1] * v, css("--short"), { N: 2 });
+    P = L.chart($("h-cvFit"), L.range([R.fit], 0.04), L.range([R.res], 0.08), { xlab: "fitted value ŷ", ylab: "residual û", zeroY: true });
+    L.dots(P, R.fit, R.res, css("--dot"), { alpha: 0.55 });
+    $("h-fitnote").innerHTML = "The standard first check (Stata's <code>rvfplot</code>): one plot that works with any number of regressors. A fan means the spread of u changes with ŷ." +
+      (p.g !== 0 ? " Here the fan is much fainter than against x₁: the variance depends on x₁, but ŷ is driven mostly by x₂, which moves three times as much. A clean residual-vs-fitted plot does not rule out heteroskedasticity, so also plot the residuals against each regressor." : "");
     // MC
     const cv = $("h-cvMC");
     if (!this.mc) { L.message(cv, "Press “Run 1,000 samples” to compare the true sampling spread of β̂₁ with the usual and robust standard errors."); $("h-bars").innerHTML = ""; $("h-mcstats").innerHTML = ""; return; }
