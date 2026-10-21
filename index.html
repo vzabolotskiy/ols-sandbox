@@ -108,8 +108,8 @@ correlate y x</div>
       <aside class="rail" aria-label="Controls">
         <div class="rail-label">True relationship</div>
         <div class="ctl row"><label for="g-form">Data come from</label><select id="g-form"><option value="ll">level-level</option><option value="gl">log-level</option><option value="lg">level-log</option><option value="gg" selected>log-log</option></select></div>
-        <div class="ctl"><label for="g-b1">True β₁ <output id="g-b1o"></output></label><input type="range" id="g-b1" min="-1" max="2" step="0.05" value="0.8"></div>
-        <div class="ctl"><label for="g-noise">Noise <output id="g-noiseo"></output></label><input type="range" id="g-noise" min="0.2" max="3" step="0.1" value="1"></div>
+        <div class="ctl"><label for="g-b1">True β₁ <output id="g-b1o"></output></label><input type="range" id="g-b1" min="-1" max="2" step="0.05" value="0.2"></div>
+        <div class="ctl"><label for="g-noise">Noise <output id="g-noiseo"></output></label><input type="range" id="g-noise" min="0.2" max="8" step="0.1" value="1"></div>
         <div class="ctl row"><label for="g-n">Sample size n</label><select id="g-n"><option>30</option><option selected>100</option><option>300</option><option>1000</option></select></div>
         <div class="rail-label">Model you estimate</div>
         <div class="ctl row"><label for="g-fit">Fit</label><select id="g-fit"><option value="ll">level-level</option><option value="gl">log-level</option><option value="lg">level-log</option><option value="gg" selected>log-log</option></select></div>
@@ -120,6 +120,7 @@ correlate y x</div>
           <li>Keep the data, fit level-level. The straight line misses the curvature, and its elasticity changes along the curve.</li>
           <li>Switch the data to log-level: constant percentage growth per unit of x.</li>
           <li>Compare R² across the four columns. Only models with the same dependent variable are comparable (see the note under the table).</li>
+          <li>Raise the noise to about 6 and look at “Converting log predictions back to levels”. Unadjusted predictions fall well below the 45° line; the adjustment factors pull them back.</li>
         </ol>
         <div class="stata">gen lny = log(y)
 gen lnx = log(x)
@@ -145,13 +146,46 @@ reg y lnx       // level-log</div>
           </section>
         </div>
         <section class="panel" aria-labelledby="g-h3">
-          <h2 id="g-h3">What β̂₁ means in the model you fit</h2>
+          <h2 id="g-h3">Interpreting β₁: the true model vs the model you fit</h2>
           <div class="calc" id="g-interp"></div>
         </section>
         <section class="panel" aria-labelledby="g-h4">
           <h2 id="g-h4">All four functional forms on the same data</h2>
           <div class="tablewrap"><table id="g-tab"></table></div>
           <p>R² in a log-y model measures how much of the variation in ln y is explained, so it cannot be compared with R² from a level-y model.</p>
+        </section>
+        <section class="panel" aria-labelledby="g-h5">
+          <h2 id="g-h5">Comparing fit across y and ln y</h2>
+          <p>Log-log and log-level share the dependent variable ln y, so their R² can be compared directly. To compare a log-y model with a level-y model, put both on the same scale: predict y in levels and measure fit there.</p>
+          <div class="tablewrap"><table id="g-cmp"></table></div>
+          <h2 id="g-h6" style="margin-top:6px">Converting log predictions back to levels</h2>
+          <div class="calc" id="g-adj"></div>
+          <div class="bars" id="g-bars"></div>
+          <div class="legend"><span><i class="blk" style="background:var(--ink);width:3px"></i>corr(y, ŷ)²: the upper bound for 1 − SSR/SST</span></div>
+          <div class="cv"><canvas id="g-cvPred" role="img" aria-label="Actual y against predicted y in levels, unadjusted and adjusted, with a 45-degree line"></canvas></div>
+          <div class="legend">
+            <span><i class="blk" style="background:var(--short)"></i>unadjusted: exp(ln ŷ)</span>
+            <span><i class="blk" style="background:var(--long)"></i>adjusted: smearing × exp(ln ŷ)</span>
+            <span><i class="sw" style="background:var(--ink)"></i>45° line: perfect prediction</span>
+          </div>
+          <div class="explain">
+            <p><b>Why exp(ln ŷ) is too low.</b> The model predicts the mean of ln y. Exponentiating gives exp(E[ln y]), which is smaller than E[y] (the exponential is convex). On average the unadjusted predictions sit below the 45° line.</p>
+            <p><b>Three adjustment factors</b> scale them back up:</p>
+            <div class="calc">normal errors: exp(σ̂² / 2) &nbsp;·&nbsp; smearing: mean of exp(ûᵢ) &nbsp;·&nbsp; best in levels: α̌ = Σ yᵢ m̂ᵢ / Σ m̂ᵢ², where m̂ᵢ = exp(ln ŷᵢ)</div>
+            <p>The first assumes the errors are normal. Smearing does not. α̌ is the multiplier that minimises SSR in levels (<code>regress y m̂, noconstant</code>).</p>
+            <p><b>Two ways to compute an R² in levels.</b> corr(y, ŷ)² is not affected by any adjustment factor, because multiplying ŷ by a constant does not change a correlation. It is the fit you would get after the best possible rescaling, an upper bound, and it is the number to compare with the level model's R². 1 − SSR/SST scores the predictions as they are: it punishes the unadjusted ones for being too low and can even be negative. For OLS fitted values of y itself (the level-level model) the two coincide.</p>
+            <p><b>Raise the noise</b> to see the gap: with small σ the factors are all close to 1 and it barely matters.</p>
+          </div>
+          <pre class="stata">regress lny x                 // or lnx for log-log
+predict lnyhat, xb
+gen uhat = lny - lnyhat
+gen mhat = exp(lnyhat)        // unadjusted
+corr y mhat
+display r(rho)^2              // R² in levels, comparable with reg y x
+gen eu = exp(uhat)
+quietly summarize eu
+gen yhat_s = r(mean)*mhat     // smearing-adjusted predictions
+regress y mhat, noconstant    // coefficient = α̌</pre>
         </section>
       </main>
     </div>
@@ -611,12 +645,30 @@ predict sef, stdf    // se for a new obs.</div>
           <section class="panel" aria-labelledby="q-h2">
             <h2 id="q-h2">Residuals of the straight line</h2>
             <div class="cv"><canvas id="q-cvRes" role="img" aria-label="Residuals from the linear model against x"></canvas></div>
-            <p>If the true relationship curves, the linear model's residuals are systematically positive at the ends and negative in the middle (or the reverse). A pattern here means the functional form is wrong.</p>
+            <p>If the true relationship curves, the straight line's residuals are systematically positive at the ends and negative in the middle, or the reverse. But even when the line is the right model, the binned means wiggle a little by chance, so the eye alone cannot settle it. The test below does.</p>
           </section>
         </div>
         <section class="panel" aria-labelledby="q-h3">
           <h2 id="q-h3">Regression output</h2>
           <div class="tablewrap"><table id="q-tab"></table></div>
+        </section>
+        <section class="panel" aria-labelledby="q-h6">
+          <h2 id="q-h6">Is the curvature real? Testing H₀: β₂ = 0</h2>
+          <div class="calc" id="q-curv"></div>
+          <div class="explain">
+            <p><b>A pattern is evidence, not proof.</b> Residual plots are a good first look, but random noise also produces bumps. To decide whether the curvature is real, add x² and test its coefficient with an ordinary t-test:</p>
+            <div class="calc">t = β̂₂ / se(β̂₂) &nbsp; ~ &nbsp; t with n − 3 df if H₀: β₂ = 0 is true</div>
+            <p>Rejecting H₀ means the straight line is the wrong functional form. Failing to reject does not prove the line is right: with a small sample or gentle curvature the test may simply miss it. That is a question of power, which the repeated samples below make visible.</p>
+          </div>
+          <div class="btns"><button type="button" class="act ghost" id="q-mc">Run 500 samples</button></div>
+          <div class="cv wide"><canvas id="q-cvMC" role="img" aria-label="Histogram of the t-statistic on x squared across samples, with critical values"></canvas></div>
+          <div class="legend">
+            <span><i class="blk" style="background:var(--long)"></i>t on x² across samples</span>
+            <span><i class="sw" style="background:var(--ink)"></i>t distribution if β₂ = 0</span>
+            <span><i class="blk" style="background:var(--reject)"></i>rejection region (5%)</span>
+          </div>
+          <div class="stats" id="q-mcstats"></div>
+          <p>Each sample gives one t-statistic on x². If the true β₂ is 0 they follow the black curve and land in the red regions about 5% of the time. The more curvature in the data, the further right (or left) the histogram moves and the more often the test detects it. Try curvature 0.15, then 0.03, then 0.</p>
         </section>
         <section class="panel" aria-labelledby="q-h4">
           <h2 id="q-h4">Marginal effect and prediction at the chosen x</h2>

@@ -138,5 +138,8 @@ tr.sec td { color: var(--muted); font-size: 11.5px; text-transform: uppercase; l
 .explain p { margin: 0; }
 .explain .calc { padding: 6px 0; }
 .linkish { font: inherit; color: var(--long); background: none; border: none; padding: 0; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+tr.hl td { background: var(--tint); }
+table.interp td, table.interp th { text-align: left; white-space: normal; }
+table.interp td:first-child { color: var(--muted); font-size: 13px; width: 30%; }
 footer { color: var(--muted); font-size: 12.5px; max-width: 90ch; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

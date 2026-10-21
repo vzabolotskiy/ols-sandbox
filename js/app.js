@@ -388,12 +388,26 @@ wire("jf", jf, ["j-b2", "j-b3", "j-rho", "j-sig", "j-n", "j-a"], "j");
 const form = {
   seed: 16180, Z: null, mc: null, last: null,
   P() { return { b: num("q-b"), q: num("q-q"), sig: num("q-sig"), n: num("q-n"), x0: num("q-x0"), k: num("q-k") }; },
+  data(Z, p, n) {
+    const x = new Float64Array(n), x2 = new Float64Array(n), y = new Float64Array(n);
+    for (let i = 0; i < n; i++) { x[i] = 10 + 3 * Z[0][i]; x2[i] = x[i] * x[i]; y[i] = 50 + p.b * x[i] + p.q * x2[i] + p.sig * Z[1][i]; }
+    return { x, x2, y };
+  },
+  runMC() {
+    const p = this.P(), R = 500, t = []; let rej = 0, tc = null;
+    this.runs = (this.runs || 0) + 1;
+    for (let r = 0; r < R; r++) {
+      const d = this.data(L.normals(this.seed + 9000 + 1000 * this.runs + r, p.n, 2), p, p.n), Q = L.ols([d.x, d.x2], d.y);
+      if (tc === null) tc = L.tcrit(Q.df, 0.05);
+      t.push(Q.t[2]); if (Math.abs(Q.t[2]) > tc) rej++;
+    }
+    this.mc = { p, t, rej, tc, df: p.n - 3 };
+  },
   render() {
     const p = this.P(), Z = getZ(this, 22), n = p.n;
     $("q-bo").textContent = f(p.b, 1); $("q-qo").textContent = f(p.q, 2); $("q-sigo").textContent = f(p.sig, 1); $("q-x0o").textContent = f(p.x0, 1); $("q-ko").textContent = p.k;
     $("q-dgp").innerHTML = `True model: y = 50 <b>${sgn(p.b)}</b>·x <b>${sgn(p.q, 2)}</b>·x² + u &nbsp;·&nbsp; x ~ N(10, 3²) &nbsp;·&nbsp; σ = <b>${p.sig.toFixed(1)}</b> &nbsp;·&nbsp; n = <b>${n}</b>`;
-    const x = new Float64Array(n), x2 = new Float64Array(n), y = new Float64Array(n);
-    for (let i = 0; i < n; i++) { x[i] = 10 + 3 * Z[0][i]; x2[i] = x[i] * x[i]; y[i] = 50 + p.b * x[i] + p.q * x2[i] + p.sig * Z[1][i]; }
+    const { x, x2, y } = this.data(Z, p, n);
     const noise = Array.from({ length: 20 }, (_, j) => Z[2 + j].subarray(0, n));
     const Lin = L.ols([x], y), Q = L.ols([x, x2], y), path = [];
     for (let j = 0; j <= 20; j++) { const R = j ? L.ols([x, x2, ...noise.slice(0, j)], y) : Q; path.push([R.r2, R.adj]); }
@@ -421,6 +435,11 @@ const form = {
       se(ŷ₀) = ${f(seY, 3)} &nbsp;·&nbsp; σ̂ = ${f(Q.rmse, 3)} &nbsp;·&nbsp; se(ê₀) = √(se(ŷ₀)² + σ̂²) = ${f(seE, 3)}<br>
       95% CI for the mean: <span class="l">[${f(y0 - tc * seY, 2)}, ${f(y0 + tc * seY, 2)}]</span><br>
       95% interval for one new observation: <span class="l">[${f(y0 - tc * seE, 2)}, ${f(y0 + tc * seE, 2)}]</span>`;
+    const tq = L.tcrit(Q.df, 0.05), rejQ = Math.abs(Q.t[2]) > tq;
+    $("q-curv").innerHTML = `Quadratic model: β̂₂ = ${f(Q.b[2], 4)}, se(β̂₂) = ${f(Q.se[2], 4)}<br>
+      t = ${f(Q.b[2], 4)} / ${f(Q.se[2], 4)} = <span class="l">${f(Q.t[2], 3)}</span> &nbsp;·&nbsp; df = ${Q.df} &nbsp;·&nbsp; critical |t| at 5%: <span class="r">${f(tq, 3)}</span> &nbsp;·&nbsp; p = ${fp(Q.p[2])} &nbsp;${verdict(rejQ)}<br>
+      <span class="${rejQ ? "l" : "m"}">${rejQ ? "The curvature is statistically significant: the straight line is the wrong functional form." : "No significant curvature in this sample: the straight line is not rejected."}</span>
+      <span class="m">${p.q === 0 ? (rejQ ? " Here the true β₂ is 0, so this rejection is a type I error (it happens 5% of the time)." : " The true β₂ is 0, so this is the right call.") : (rejQ ? "" : ` But the true β₂ is ${f(p.q, 2)}: the test missed real curvature (a type II error).`)}</span>`;
     this.draw();
   },
   draw() {
@@ -458,6 +477,20 @@ const form = {
         ctx.fillStyle = col; path.forEach((r, j) => { ctx.beginPath(); ctx.arc(P.X(j), P.Y(r[idx]), j === p.k ? 5 : 2.2, 0, 7); ctx.fill(); }); });
     }
     L.vline(P, p.k, css("--muted"), { width: 1, dash: [3, 3] });
+    // repeated samples: t on x²
+    const cvq = $("q-cvMC");
+    if (!this.mc) { L.message(cvq, "Press “Run 500 samples” to see how often the t-test on x² detects the curvature."); $("q-mcstats").innerHTML = ""; return; }
+    const mc = this.mc, lim = Math.max(5, mc.tc + 1.5, ...mc.t.map(v => Math.abs(v) + 0.5)), nb = 50, hwq = 2 * lim / nb;
+    const tpdf = v => L.tpdf(v, mc.df), dens = L.histMax(mc.t, -lim, lim, nb) / (mc.t.length * hwq);
+    P = L.chart(cvq, [-lim, lim], [0, Math.max(dens, tpdf(0)) * 1.12], { xlab: "t-statistic on x²", ylab: "density" });
+    const rc = L.alpha(css("--reject"), 0.25);
+    L.area(P, tpdf, -lim, -mc.tc, rc); L.area(P, tpdf, mc.tc, lim, rc);
+    L.hist(P, mc.t, nb, css("--long"), { scale: 1 / (mc.t.length * hwq), alpha: 0.5 });
+    L.curve(P, tpdf, css("--ink"), { width: 2 });
+    L.vline(P, -mc.tc, css("--reject"), { width: 1.2, dash: [3, 3] }); L.vline(P, mc.tc, css("--reject"), { width: 1.2, dash: [3, 3], label: "±" + f(mc.tc, 2) });
+    const Nq = mc.t.length, nul = mc.p.q === 0;
+    $("q-mcstats").innerHTML = stat("t-test rejects H₀: β₂ = 0", `${mc.rej} of ${Nq}`) +
+      stat(nul ? "true β₂ = 0, so these are type I errors" : `true β₂ = ${f(mc.p.q, 2)}, so this is power`, nul ? `expected about ${Math.round(Nq * 0.05)}` : `${pct(mc.rej / Nq)} of samples detect the curvature`);
   }
 };
 wire("form", form, ["q-b", "q-q", "q-sig", "q-n", "q-x0", "q-k"], "q");
@@ -623,7 +656,7 @@ const FORMS = {
   ll: { name: "level-level", eq: b => `y = 20 ${sgn(b, 2)}·x + u`, rng: [-1, 3, 0.05, 1.5], sd: 3, logy: false, logx: false, b0: 20 },
   gl: { name: "log-level", eq: b => `ln y = 2 ${sgn(b, 3)}·x + u`, rng: [-0.1, 0.1, 0.005, 0.05], sd: 0.15, logy: true, logx: false, b0: 2 },
   lg: { name: "level-log", eq: b => `y = 20 ${sgn(b, 2)}·ln x + u`, rng: [-10, 20, 0.5, 10], sd: 3, logy: false, logx: true, b0: 20 },
-  gg: { name: "log-log", eq: b => `ln y = 1 ${sgn(b, 2)}·ln x + u`, rng: [-1, 2, 0.05, 0.8], sd: 0.15, logy: true, logx: true, b0: 1 }
+  gg: { name: "log-log", eq: b => `ln y = 1 ${sgn(b, 2)}·ln x + u`, rng: [-1, 2, 0.05, 0.2], sd: 0.15, logy: true, logx: true, b0: 1 }
 };
 const logs = {
   seed: 2718, Z: null, last: null, form: "gg",
@@ -651,6 +684,7 @@ const logs = {
     }
     const trueMean = v => { const rhs = F.b0 + p.b1 * (F.logx ? Math.log(v) : v); return F.logy ? Math.exp(rhs + sd * sd / 2) : rhs; };
     this.last = { p, F, x, y, lx, ly, fits, pos, trueMean };
+    this.compare(p, y, fits, pos);
     // table
     const models = ["ll", "gl", "lg", "gg"].map(k => ({ title: FORMS[k].name, cls: k === p.fit ? "c-long" : "", R: fits[k], names: ["x"], note: "needs y > 0", dec: 4 }));
     $("g-tab").innerHTML = L.regTable(models, [["x", "β̂₁ (on x or ln x)"], ["_cons", "constant"]], [
@@ -659,27 +693,71 @@ const logs = {
     // interpretation
     const R = fits[p.fit], G = FORMS[p.fit];
     if (!R) { $("g-interp").innerHTML = `<span class="r">Some y values are ≤ 0, so ln y does not exist. Lower the noise or pick a level-y model.</span>`; this.draw(); return; }
-    const b = R.b[1], xm = L.mean(x), ym = L.mean(y);
+    const b = R.b[1], xm = L.mean(x);
     const yhat = v => { const rhs = R.b[0] + b * (G.logx ? Math.log(v) : v); return G.logy ? Math.exp(rhs + R.rmse ** 2 / 2) : rhs; };
-    const elas = { ll: b * xm / yhat(xm), gl: b * xm, lg: b / yhat(xm), gg: b }[p.fit];
-    const txt = {
-      ll: `If x goes up by 1 unit, y changes by β̂₁ = <span class="l">${f(b, 3)}</span> units. &nbsp;Δy = β̂₁·Δx`,
-      gl: `If x goes up by 1 unit, y changes by about 100·β̂₁ = <span class="l">${f(100 * b, 2)}%</span>. &nbsp;%Δy = 100·β̂₁·Δx <span class="m">(exact: 100·(e^β̂₁ − 1) = ${f(100 * (Math.exp(b) - 1), 2)}%)</span>`,
-      lg: `If x goes up by 1%, y changes by β̂₁/100 = <span class="l">${f(b / 100, 4)}</span> units. &nbsp;Δy = (β̂₁/100)·%Δx`,
-      gg: `If x goes up by 1%, y changes by about β̂₁ = <span class="l">${f(b, 3)}%</span>. &nbsp;%Δy = β̂₁·%Δx: β̂₁ is a constant elasticity`
-    }[p.fit];
-    const truth = p.fit === p.form ? `<span class="m">You are fitting the true functional form; true β₁ = ${f(p.b1, dec)}.</span>` :
-      `<span class="s">The data come from a ${F.name} model, so this functional form is misspecified.</span>`;
-    $("g-interp").innerHTML = `<b>${G.name}</b>: ${G.logy ? "ln y" : "y"} = ${f(R.b[0], 4)} ${sgn(b, 4)}·${G.logx ? "ln x" : "x"} &nbsp;(R² = ${f(R.r2, 4)})<br>
-      ${txt}<br>
-      Elasticity at the mean of x (x̄ = ${f(xm, 2)}): <span class="l">${f(elas, 3)}</span> <span class="m">${{ ll: "= β̂₁·x̄/ŷ, changes along the line", gl: "= β̂₁·x, grows with x", lg: "= β̂₁/ŷ, changes along the curve", gg: "= β̂₁, the same at every x" }[p.fit]}</span><br>
-      ${truth}`;
+    // effect of x at x̄ implied by a model of form k with slope s and mean function mu
+    const effects = (k, s, mu) => ({ dydx: { ll: s, gl: s * mu, lg: s / xm, gg: s * mu / xm }[k], elas: { ll: s * xm / mu, gl: s * xm, lg: s / mu, gg: s }[k] });
+    const sentence = (k, s, d, hat) => {
+      const B = hat ? "β̂₁" : "β₁";
+      return {
+        ll: `x +1 unit → y changes by ${B} = <b>${f(s, d)}</b> units`,
+        gl: `x +1 unit → y changes by about 100·${B} = <b>${f(100 * s, 2)}%</b>`,
+        lg: `x +1% → y changes by ${B}/100 = <b>${f(s / 100, 4)}</b> units`,
+        gg: `x +1% → y changes by about ${B} = <b>${f(s, 3)}%</b> (constant elasticity)`
+      }[k];
+    };
+    const eqn = (k, b0, s, d) => `${FORMS[k].logy ? "ln y" : "y"} = ${f(b0, d)} ${sgn(s, d)}·${FORMS[k].logx ? "ln x" : "x"}`;
+    const T = effects(p.form, p.b1, trueMean(xm)), E = effects(p.fit, b, yhat(xm)), same = p.fit === p.form;
+    const row = (lab, a1, a2) => `<tr><td>${lab}</td><td>${a1}</td><td>${a2}</td></tr>`;
+    $("g-interp").innerHTML = `<div class="tablewrap"><table class="interp"><thead><tr><th scope="col"></th><th scope="col">True model (${F.name})</th><th scope="col" class="c-long">Model you fit (${G.name})</th></tr></thead><tbody>
+      ${row("equation", eqn(p.form, F.b0, p.b1, dec), eqn(p.fit, R.b[0], b, 4))}
+      ${row("slope means", sentence(p.form, p.b1, dec, false), sentence(p.fit, b, 4, true))}
+      ${row(`dy/dx at x̄ = ${f(xm, 1)} (effect of +1 unit of x)`, f(T.dydx, 3), f(E.dydx, 3))}
+      ${row("elasticity at x̄: %Δy per 1% Δx", f(T.elas, 3), f(E.elas, 3))}
+      </tbody></table></div>
+      <p style="margin:8px 0 0">${same
+        ? `<span class="l">You are fitting the true functional form,</span> so β̂₁ = ${f(b, 4)} estimates β₁ = ${f(p.b1, dec)} directly.`
+        : `<span class="s">You are fitting a different functional form,</span> so β̂₁ is not an estimate of β₁: the two slopes are in different units. Compare the last two rows instead, which put both models on the same scale. ${Math.abs(E.dydx / T.dydx - 1) < 0.15 ? "Here the fitted model gets the effect at x̄ roughly right, but it is wrong about how the effect changes as x moves away from x̄." : `Here even the effect at x̄ is off by ${f(100 * Math.abs(E.dydx / T.dydx - 1), 0)}%.`}`}</p>`;
     $("g-levnote").textContent = G.logy ? "For log-y models the curve is exp(fitted ln y) × e^(σ̂²/2): the usual adjustment, because exp(mean of ln y) understates the mean of y." : "";
     this.draw();
+  },
+  compare(p, y, fits, pos) {
+    const n = y.length, ybar = L.mean(y), SST = L.sst(y);
+    const r2lev = yh => { let s = 0; for (let i = 0; i < n; i++) s += (y[i] - yh[i]) ** 2; return 1 - s / SST; };
+    const order = ["ll", "lg", "gl", "gg"];
+    const rows = order.map(k => {
+      const G = FORMS[k], R = fits[k]; if (!R) return `<tr><td>${G.name}</td><td>${G.logy ? "ln y" : "y"}</td><td class="na" colspan="2">needs y &gt; 0</td></tr>`;
+      const yh = G.logy ? R.fit.map(Math.exp) : R.fit, c2 = L.corr(y, yh) ** 2;
+      return `<tr${k === p.fit ? ' class="hl"' : ""}><td>${G.name}</td><td>${G.logy ? "ln y" : "y"}</td><td>${f(R.r2, 4)}</td><td><b>${f(c2, 4)}</b></td></tr>`;
+    });
+    $("g-cmp").innerHTML = `<thead><tr><th scope="col">Model</th><th scope="col">dependent variable</th><th scope="col">R² as reported</th><th scope="col">R² in levels = corr(y, ŷ)²</th></tr></thead><tbody>${rows.join("")}</tbody>`;
+    // adjustment for one log-y model: the chosen fit if it is log-y, otherwise log-log
+    const k = FORMS[p.fit].logy ? p.fit : "gg", R = fits[k];
+    if (!R) { this.adj = null; $("g-adj").innerHTML = `<span class="r">Some y values are ≤ 0, so ln y and the log models do not exist. Lower the noise.</span>`; $("g-bars").innerHTML = ""; return; }
+    const mh = R.fit.map(Math.exp), uh = R.res;
+    const aN = Math.exp(R.rmse ** 2 / 2), aS = L.mean(uh.map(Math.exp));
+    let sym = 0, smm = 0; for (let i = 0; i < n; i++) { sym += y[i] * mh[i]; smm += mh[i] * mh[i]; }
+    const aB = sym / smm, c2 = L.corr(y, mh) ** 2;
+    const opts = [["unadjusted (× 1)", 1, "var(--short)"], ["normal: exp(σ̂²/2)", aN, "var(--long)"], ["smearing: mean exp(ûᵢ)", aS, "var(--long)"], ["best in levels: α̌", aB, "var(--long)"]];
+    const res = opts.map(([lab, a, col]) => { const yh = mh.map(v => a * v); return { lab, a, col, r2: r2lev(yh), mean: L.mean(yh) }; });
+    this.adj = { k, mh, aS, y };
+    $("g-adj").innerHTML = `Using the <b>${FORMS[k].name}</b> model${k !== p.fit ? " (pick a log-y model under “Fit” to switch)" : ""}: m̂ᵢ = exp(ln ŷᵢ), σ̂ = ${f(R.rmse, 3)}<br>
+      exp(σ̂²/2) = <span class="l">${f(aN, 4)}</span> &nbsp;·&nbsp; smearing = <span class="l">${f(aS, 4)}</span> &nbsp;·&nbsp; α̌ = Σyᵢm̂ᵢ / Σm̂ᵢ² = <span class="l">${f(aB, 4)}</span><br>
+      mean of y = ${f(ybar, 2)} &nbsp;·&nbsp; mean of predictions: ${res.map(r => `${r.lab.split(":")[0]} ${f(r.mean, 2)}`).join(" · ")}<br>
+      corr(y, m̂)² = <b>${f(c2, 4)}</b> for every factor &nbsp;·&nbsp; 1 − SSR/SST in levels:`;
+    const pctw = v => (100 * Math.max(0, Math.min(1, v))).toFixed(1) + "%";
+    $("g-bars").innerHTML = res.map(r => `<div class="bar"><span>${r.lab}</span><span class="track"><span class="fill" style="width:${pctw(r.r2)};background:${r.col}"></span><span class="mark" style="left:${pctw(c2)}"></span></span><span class="num">${r.r2 < 0 ? "&lt; 0" : f(r.r2, 4)}</span></div>`).join("");
   },
   draw() {
     if (!this.last || !visible($("g-cvLev"))) return;
     const { p, x, y, lx, ly, fits, trueMean } = this.last, G = FORMS[p.fit], R = fits[p.fit];
+    if (this.adj) {
+      const { mh, aS } = this.adj, adj = mh.map(v => aS * v), lim = L.range([y, mh, adj], 0.05);
+      const Pp = L.chart($("g-cvPred"), lim, lim, { xlab: "predicted y", ylab: "actual y" });
+      L.curve(Pp, v => v, css("--ink"), { N: 2, width: 1.5 });
+      L.dots(Pp, mh, y, css("--short"), { alpha: 0.6 });
+      L.dots(Pp, adj, y, css("--long"), { alpha: 0.6 });
+    } else L.message($("g-cvPred"), "No log-y model available for these data.");
     let P = L.chart($("g-cvLev"), L.range([x], 0.04), L.range([y], 0.08), { xlab: "x", ylab: "y" });
     L.dots(P, x, y, css("--dot"), { alpha: 0.55 });
     L.curve(P, trueMean, css("--ink"), { dash: [6, 4], width: 1.8 });
