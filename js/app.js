@@ -500,8 +500,11 @@ wire("form", form, ["q-b", "q-q", "q-sig", "q-n", "q-x0", "q-k"], "q");
 // =====================================================================
 const het = {
   seed: 14142, Z: null, mc: null, last: null,
-  P() { return { g: num("h-g"), sig: num("h-sig"), n: num("h-n") }; },
-  sdu(p, x1) { return p.sig * Math.exp(p.g * (x1 - 10) / 2 - p.g * p.g); },   // E[Var(u|x)] = σ²
+  P() { return { g: num("h-g"), sig: num("h-sig"), n: num("h-n"), shape: $("h-shape").value }; },
+  sdu(p, x1) {                                    // both patterns keep E[Var(u|x)] = σ²
+    const z = (x1 - 10) / 2;
+    return p.shape === "mid" ? p.sig * Math.exp(-p.g * z * z / 2) * Math.pow(1 + 2 * p.g, 0.25) : p.sig * Math.exp(p.g * z - p.g * p.g);
+  },
   data(Z, p, n) {
     const s = Math.sqrt(1 - 0.09), x1 = new Float64Array(n), x2 = new Float64Array(n), y = new Float64Array(n);
     for (let i = 0; i < n; i++) {
@@ -518,7 +521,7 @@ const het = {
   render() {
     const p = this.P();
     $("h-go").textContent = f(p.g, 2); $("h-sigo").textContent = f(p.sig, 1);
-    $("h-dgp").innerHTML = `True model: y = 100 <b>− 1.0</b>·x₁ <b>+ 2.0</b>·x₂ + u &nbsp;·&nbsp; SD(u | x₁) = σ·exp(<b>${f(p.g, 2)}</b>·(x₁ − 10)/2 − γ²) &nbsp;·&nbsp; ${p.g === 0 ? "<b>homoskedastic</b>" : "<b>heteroskedastic</b>"} &nbsp;·&nbsp; σ = <b>${p.sig.toFixed(1)}</b> &nbsp;·&nbsp; n = <b>${p.n}</b>`;
+    $("h-dgp").innerHTML = `True model: y = 100 <b>− 1.0</b>·x₁ <b>+ 2.0</b>·x₂ + u &nbsp;·&nbsp; ${p.shape === "mid" ? `SD(u | x₁) ∝ exp(−<b>${f(p.g, 2)}</b>·z²/2), z = (x₁ − 10)/2: largest in the middle` : `SD(u | x₁) = σ·exp(<b>${f(p.g, 2)}</b>·(x₁ − 10)/2 − γ²): grows with x₁`} &nbsp;·&nbsp; ${p.g === 0 ? "<b>homoskedastic</b>" : "<b>heteroskedastic</b>"} &nbsp;·&nbsp; σ = <b>${p.sig.toFixed(1)}</b> &nbsp;·&nbsp; n = <b>${p.n}</b>`;
     const d = this.data(getZ(this, 3), p, p.n), R = L.ols([d.x1, d.x2], d.y, { robust: true }), T = this.tests(d, R);
     const tc = L.tcrit(R.df, 0.05);
     this.last = { p, d, R, T };
@@ -532,7 +535,8 @@ const het = {
       <b>White test (special form)</b>: regress û² on ŷ, ŷ² &nbsp;→&nbsp; R²<sub>û²</sub> = ${f(T.wh.r2, 4)}<br>
       LM = n · R²<sub>û²</sub> = <span class="l">${f(T.LMwh, 2)}</span> ~ χ²(2) &nbsp;·&nbsp; p = ${fp(T.pwh)} ${verdict(T.pwh < 0.05)}<br>
       <span class="m">H₀ in both: homoskedasticity, Var(u | x) = σ². Rejecting means: use robust standard errors.</span>` +
-      (T.pbp < 0.05 && T.pwh >= 0.05 ? `<br><span class="m">Why the tests disagree here: the variance depends on x₁ only, but ŷ is driven mostly by x₂ (2·x₂ moves three times as much as x₁). The special-form White test looks only at ŷ, so it misses this pattern. A test is only as good as the variables it looks at.</span>` : "");
+      (T.pbp < 0.05 && T.pwh >= 0.05 ? `<br><span class="m">Why the tests disagree here: the variance depends on x₁ only, but ŷ is driven mostly by x₂ (2·x₂ moves three times as much as x₁). The special-form White test looks only at ŷ, so it misses this pattern. A test is only as good as the variables it looks at.</span>` : "") +
+      (p.shape === "mid" && p.g > 0 && T.pbp >= 0.05 ? `<br><span class="m">Why Breusch–Pagan misses it: it looks for variance that rises or falls linearly with the regressors. A bulge in the middle of x₁ is symmetric, so a straight line through û² against x₁ is flat. The full White test (<code>estat imtest, white</code>), which also uses x₁², would pick it up.</span>` : "");
     this.draw();
   },
   draw() {
@@ -549,7 +553,7 @@ const het = {
     P = L.chart($("h-cvFit"), L.range([R.fit], 0.04), L.range([R.res], 0.08), { xlab: "fitted value ŷ", ylab: "residual û", zeroY: true });
     L.dots(P, R.fit, R.res, css("--dot"), { alpha: 0.55 });
     $("h-fitnote").innerHTML = "The standard first check (Stata's <code>rvfplot</code>): one plot that works with any number of regressors. A fan means the spread of u changes with ŷ." +
-      (p.g !== 0 ? " Here the fan is much fainter than against x₁: the variance depends on x₁, but ŷ is driven mostly by x₂, which moves three times as much. A clean residual-vs-fitted plot does not rule out heteroskedasticity, so also plot the residuals against each regressor." : "");
+      (p.g !== 0 ? " Here the pattern is much fainter than against x₁: the variance depends on x₁, but ŷ is driven mostly by x₂, which moves three times as much. A clean residual-vs-fitted plot does not rule out heteroskedasticity, so also plot the residuals against each regressor." : "");
     // MC
     const cv = $("h-cvMC");
     if (!this.mc) { L.message(cv, "Press “Run 1,000 samples” to compare the true sampling spread of β̂₁ with the usual and robust standard errors."); $("h-bars").innerHTML = ""; $("h-mcstats").innerHTML = ""; return; }
@@ -566,7 +570,8 @@ const het = {
     $("h-bars").innerHTML = bar("95% CI coverage, usual", mc.covU, 0.95, "var(--short)") + bar("95% CI coverage, robust", mc.covR, 0.95, "var(--long)") +
       bar("Breusch–Pagan rejects", mc.bp, 0.05, "var(--muted)");
     $("h-mcstats").innerHTML = stat("mean β̂₁ (true −1)", f(L.mean(mc.b))) + stat("true SD of β̂₁ across samples", f(L.sd(mc.b), 4)) +
-      stat("average usual se(β̂₁)", f(L.mean(mc.seU), 4)) + stat("average robust se(β̂₁)", f(L.mean(mc.seR), 4));
+      stat("average usual se(β̂₁)", f(L.mean(mc.seU), 4)) + stat("average robust se(β̂₁)", f(L.mean(mc.seR), 4)) +
+      stat("rejects the true H₀: β₁ = −1, usual SE", pct(1 - mc.covU) + " (should be 5%)") + stat("rejects the true H₀: β₁ = −1, robust SE", pct(1 - mc.covR) + " (should be 5%)");
   },
   runMC() {
     const p = this.P(), N = 1000, b = [], seU = [], seR = []; let cu = 0, cr = 0, bp = 0, tc = null;
@@ -580,7 +585,7 @@ const het = {
     this.mc = { p, b, seU, seR, covU: cu / N, covR: cr / N, bp: bp / N };
   }
 };
-wire("het", het, ["h-g", "h-sig", "h-n"], "h");
+wire("het", het, ["h-shape", "h-g", "h-sig", "h-n"], "h");
 
 // =====================================================================
 // Least squares & R²

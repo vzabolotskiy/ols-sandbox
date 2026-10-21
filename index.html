@@ -700,8 +700,9 @@ predict sef, stdf    // se for a new obs.</div>
     <div class="app">
       <aside class="rail" aria-label="Controls">
         <div class="rail-label">Error variance</div>
-        <div class="ctl"><label for="h-g">Heteroskedasticity γ <output id="h-go"></output></label><input type="range" id="h-g" min="-1" max="1.5" step="0.05" value="1"></div>
-        <span class="hint">γ = 0 is homoskedastic: Var(u | x) is constant. γ &gt; 0: the spread of u grows with x₁. γ &lt; 0: it shrinks.</span>
+        <div class="ctl row"><label for="h-shape">Pattern</label><select id="h-shape"><option value="fan" selected>spread grows with x₁</option><option value="mid">spread largest in the middle of x₁</option></select></div>
+        <div class="ctl"><label for="h-g">Heteroskedasticity γ <output id="h-go"></output></label><input type="range" id="h-g" min="0" max="1.5" step="0.05" value="1"></div>
+        <span class="hint">γ = 0 is homoskedastic: Var(u | x) is constant. Larger γ means stronger heteroskedasticity in the chosen pattern.</span>
         <div class="ctl"><label for="h-sig">σ (average SD of u) <output id="h-sigo"></output></label><input type="range" id="h-sig" min="1" max="20" step="0.5" value="5"></div>
         <div class="ctl row"><label for="h-n">Sample size n</label><select id="h-n"><option>30</option><option>100</option><option selected>200</option><option>500</option><option>1000</option></select></div>
         <div class="btns"><button type="button" class="act" id="h-new">Draw new sample</button></div>
@@ -710,7 +711,7 @@ predict sef, stdf    // se for a new obs.</div>
           <li>Compare the two columns of the table. The coefficients are identical: heteroskedasticity does not bias OLS.</li>
           <li>Run the repeated samples at γ = 1. The usual SE understates the true spread, so its 95% CIs cover less than 95%. Robust CIs are close to 95%.</li>
           <li>Set γ = 0. Usual and robust SEs agree, and the Breusch–Pagan test rejects only about 5% of the time.</li>
-          <li>Try γ = −0.8. Now the usual SE is too large: inference is conservative rather than overconfident.</li>
+          <li>Switch the pattern to “spread largest in the middle of x₁” and run the samples. Now the usual SE is too large: coverage is above 95%, and inference is conservative rather than overconfident.</li>
           <li>Drop n to 30. Robust SEs are a large-sample fix; in small samples they are imperfect too.</li>
         </ol>
         <div class="stata">regress y x1 x2
@@ -772,6 +773,11 @@ regress y x1 x2, vce(robust)</div>
           <p>If a standard error is right, its bell curve should trace the histogram. A curve narrower than the histogram means that SE understates the real uncertainty, so its confidence intervals are too short and its tests reject too often.</p>
           <div class="bars" id="h-bars"></div>
           <div class="stats" id="h-mcstats"></div>
+          <div class="explain">
+            <p><b>What goes wrong: false positives.</b> If H₀ is true, a 5% test should reject about 5% of the time, and a 95% CI should contain the truth in about 95% of samples. Here the true β₁ is −1, so testing H₀: β₁ = −1 is a test of a true null. With the usual SE and γ &gt; 0, it rejects far more than 5% of the time, and the “95%” CI covers the truth much less often. The two failures are the same thing: a CI misses the truth exactly when the test of the true value rejects. Robust SEs bring both back to roughly 5% and 95%.</p>
+            <p><b>Caveat 1: the direction depends on the pattern.</b> The usual SE is not always too small. What matters is where the noise sits. Observations far from the mean of x₁ carry the most information about the slope. If the error variance is largest there (the fan), the usual SE is too small. Switch the pattern to “spread largest in the middle of x₁”: now the noisy observations are the uninformative ones, the usual SE is too large, you under-reject, and coverage is above 95%. The same happens with a dummy regressor when the smaller group has the smaller variance. Inference is then conservative rather than overconfident, but still wrong.</p>
+            <p><b>Caveat 2: this is about size, not power.</b> Size is how often you reject a true null (false positives). Power is how often you detect a real effect. Heteroskedasticity distorts size, which is what the coverage bars measure here. Whether you can detect a true effect is a separate question.</p>
+          </div>
         </section>
       </main>
     </div>
